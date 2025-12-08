@@ -470,8 +470,13 @@
                 </el-form-item>
             </el-form>
             <template #footer>
-                <el-button @click="correctionDialogVisible = false">取消</el-button>
-                <el-button type="primary" @click="submitCorrection">提交修正</el-button>
+                <div style="display: flex; justify-content: space-between;">
+                    <el-button type="success" plain @click="revertToVerified">确认AI准确</el-button>
+                    <div>
+                        <el-button @click="correctionDialogVisible = false">取消</el-button>
+                        <el-button type="primary" @click="submitCorrection">提交修正</el-button>
+                    </div>
+                </div>
             </template>
         </el-dialog>
 
@@ -802,6 +807,18 @@
                         ElMessage.success('已提交纠错');
                     };
 
+                    const revertToVerified = () => {
+                         const item = currentIssue.value;
+                         if (item.status === 'pending') {
+                             currentTask.value.processedCount++;
+                         }
+                         item.status = 'verified';
+                         item.humanCategory = null;
+                         item.reason = null;
+                         correctionDialogVisible.value = false;
+                         ElMessage.success('已更正为准确');
+                    };
+
                     const getStatusType = (s) => ({ pending: 'warning', assigned: 'primary', completed: 'success' }[s]);
                     const getStatusText = (s) => ({ pending: '待分发', assigned: '校验中', completed: '已完成' }[s]);
                     const formatNumber = (num) => num.toLocaleString();
@@ -823,7 +840,7 @@
                         correctionDialogVisible, currentIssue, correctionForm,
                         handleRoleChange, handleMenuSelect, handleFileChange,
                         openDistributeDialog, confirmDistribute, enterTask,
-                        verifyIssue, openCorrection, submitCorrection,
+                        verifyIssue, openCorrection, submitCorrection, revertToVerified,
                         getStatusType, getStatusText, formatNumber,
                         // Icons (作为变量使用的)
                         Select, EditPen, Upload
