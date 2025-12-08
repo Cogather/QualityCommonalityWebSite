@@ -369,9 +369,13 @@
                                         <!-- Group Columns (Merged) -->
                                         <el-table-column prop="spdt" label="SPDT" width="100" align="center"></el-table-column>
                                         <el-table-column prop="ipmt" label="IPMT" width="100" align="center"></el-table-column>
-                                        <el-table-column prop="aiCategory" label="聚类类别" width="120" align="center">
+                                        <el-table-column label="聚类类别" width="140" align="center">
                                             <template #default="{row}">
-                                                <el-tag>{{ row.aiCategory }}</el-tag>
+                                                <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                                                    <el-tag type="info" effect="dark" size="small">{{ row.aiCategoryLarge }}</el-tag>
+                                                    <el-icon style="transform: rotate(90deg); color: #909399; font-size: 12px;"><Arrow-Right /></el-icon>
+                                                    <el-tag type="info" effect="plain" size="small">{{ row.aiCategorySub }}</el-tag>
+                                                </div>
                                             </template>
                                         </el-table-column>
                                         <el-table-column prop="summary" label="聚类总结" width="200" show-overflow-tooltip>
@@ -387,21 +391,23 @@
 
                                         <!-- Requested Column Order -->
                                         <!-- 1. 用户矫正类别 (User Correction Category) -->
-                                        <el-table-column label="用户矫正类别" width="180">
+                                        <el-table-column label="用户矫正类别" width="220">
                                             <template #default="{row}">
                                                 <div v-if="row.status === 'pending'" style="display: flex; gap: 8px;">
                                                     <el-button type="success" size="small" plain @click="verifyIssue(row)">准确</el-button>
                                                     <el-button type="primary" size="small" plain @click="openCorrection(row)">纠错</el-button>
                                                 </div>
                                                 <div v-else-if="row.status === 'verified'" style="display: flex; align-items: center; justify-content: space-between;">
-                                                    <span style="color: #67C23A; font-size: 12px; display: flex; align-items: center; gap: 4px;">
-                                                        <el-icon><Check /></el-icon> AI准确
+                                                    <span style="color: #67C23A; font-size: 12px; display: flex; flex-direction: column; gap: 2px;">
+                                                        <div style="display: flex; align-items: center; gap: 4px;"><el-icon><Check /></el-icon> AI准确</div>
+                                                        <span style="color: #999; font-size: 11px;">{{ row.aiCategoryLarge }} > {{ row.aiCategorySub }}</span>
                                                     </span>
                                                     <el-button type="primary" link size="small" @click="openCorrection(row)">修改</el-button>
                                                 </div>
                                                 <div v-else-if="row.status === 'corrected'" style="display: flex; align-items: center; justify-content: space-between;">
-                                                    <span style="font-size: 12px; color: #E6A23C; display: flex; align-items: center; gap: 4px;">
-                                                        <el-icon><Edit /></el-icon> {{ row.humanCategory }}
+                                                    <span style="font-size: 12px; color: #E6A23C; display: flex; flex-direction: column; gap: 2px;">
+                                                        <div style="display: flex; align-items: center; gap: 4px;"><el-icon><Edit /></el-icon> 人工修正</div>
+                                                        <span style="font-weight: 500;">{{ row.humanCategoryLarge }} > {{ row.humanCategorySub }}</span>
                                                     </span>
                                                     <el-button type="primary" link size="small" @click="openCorrection(row)">修改</el-button>
                                                 </div>
@@ -460,10 +466,17 @@
         <el-dialog v-model="correctionDialogVisible" title="人工纠错反馈" width="500px">
             <el-form :model="correctionForm" label-position="top">
                 <el-form-item label="AI 预测结果">
-                    <el-tag type="info" effect="plain" style="font-size: 14px; padding: 18px;">{{ currentIssue?.aiCategory }}</el-tag>
+                    <div style="display: flex; align-items: center; gap: 8px; padding: 10px; background: #f5f7fa; border-radius: 4px;">
+                        <el-tag type="info" effect="dark">{{ currentIssue?.aiCategoryLarge }}</el-tag>
+                        <el-icon><Arrow-Right /></el-icon>
+                        <el-tag type="info" effect="plain">{{ currentIssue?.aiCategorySub }}</el-tag>
+                    </div>
                 </el-form-item>
                 <el-form-item label="真实类别 (您的判断)">
-                    <el-input v-model="correctionForm.category" placeholder="请输入正确分类" style="width: 100%" size="large"></el-input>
+                    <div style="display: flex; gap: 10px;">
+                        <el-input v-model="correctionForm.categoryLarge" placeholder="请输入大类" style="flex: 1"></el-input>
+                        <el-input v-model="correctionForm.categorySub" placeholder="请输入子类" style="flex: 1"></el-input>
+                    </div>
                 </el-form-item>
                 <el-form-item label="纠错原因/备注">
                     <el-input type="textarea" v-model="correctionForm.reason" rows="3" placeholder="请简述判断依据，帮助AI更好地学习..."></el-input>
@@ -511,8 +524,8 @@
                         correctionProgress: 68
                     });
 
-                    const categories = ['硬件故障', '网络配置错误', '软件Bug', '权限不足', '数据同步异常', '用户操作失误', '环境因素', '未知原因'];
-
+                    const categories = ['网络问题', '硬件问题', '软件问题', '安全问题', '其他'];
+                    
                     const batches = ref([
                         { batchId: 'B-231001-001', uploadTime: '2023-10-01 10:00', fileName: 'issue_logs_q3_01.json', totalCount: 100, status: 'completed', assignee: 'User001' },
                         { batchId: 'B-231002-002', uploadTime: '2023-10-02 14:30', fileName: 'issue_logs_q3_02.json', totalCount: 150, status: 'assigned', assignee: 'User001' },
@@ -528,22 +541,22 @@
                             processedCount: 2,
                             items: [
                                 // Group A: Network
-                                { id: 1001, title: 'Case #1001: Connection Lost', description: 'Log shows TCP handshake timeout.', aiCategory: '网络配置错误', spdt: '分组A', ipmt: 'XX', status: 'verified', resolution: 'Restarted Switch', issueType: 'Connectivity' },
-                                { id: 1006, title: 'Case #1006: Timeout', description: 'Connection timed out after 3000ms', aiCategory: '网络配置错误', spdt: '分组A', ipmt: 'XX', status: 'pending', resolution: 'Increased Timeout', issueType: 'Latency' },
-                                { id: 1007, title: 'Case #1007: Reset', description: 'Connection reset by peer', aiCategory: '网络配置错误', spdt: '分组A', ipmt: 'XX', status: 'pending', resolution: 'Check Firewall', issueType: 'Connectivity' },
+                                { id: 1001, title: 'Case #1001: Connection Lost', description: 'Log shows TCP handshake timeout.', aiCategoryLarge: '网络问题', aiCategorySub: '连接超时', spdt: '分组A', ipmt: 'XX', status: 'verified', resolution: 'Restarted Switch', issueType: 'Connectivity' },
+                                { id: 1006, title: 'Case #1006: Timeout', description: 'Connection timed out after 3000ms', aiCategoryLarge: '网络问题', aiCategorySub: '连接超时', spdt: '分组A', ipmt: 'XX', status: 'pending', resolution: 'Increased Timeout', issueType: 'Latency' },
+                                { id: 1007, title: 'Case #1007: Reset', description: 'Connection reset by peer', aiCategoryLarge: '网络问题', aiCategorySub: '配置错误', spdt: '分组A', ipmt: 'XX', status: 'pending', resolution: 'Check Firewall', issueType: 'Connectivity' },
                                 
                                 // Group B: Hardware
-                                { id: 1002, title: 'Case #1002: Null Pointer', description: 'Java NullPointerException at Service.java:45', aiCategory: '硬件故障', spdt: '分组B', ipmt: 'YY', status: 'corrected', humanCategory: '软件Bug', reason: '代码问题', resolution: 'Patch Applied', issueType: 'NullRef' },
-                                { id: 1003, title: 'Case #1003: Disk Full', description: 'No space left on device /dev/sda1', aiCategory: '硬件故障', spdt: '分组B', ipmt: 'YY', status: 'pending', resolution: 'Cleaned Logs', issueType: 'Storage' },
-                                { id: 1008, title: 'Case #1008: Memory Error', description: 'OOM Killer triggered', aiCategory: '硬件故障', spdt: '分组B', ipmt: 'YY', status: 'pending', resolution: 'Added RAM', issueType: 'Memory' },
+                                { id: 1002, title: 'Case #1002: Null Pointer', description: 'Java NullPointerException at Service.java:45', aiCategoryLarge: '硬件问题', aiCategorySub: '内存溢出', spdt: '分组B', ipmt: 'YY', status: 'corrected', humanCategoryLarge: '软件问题', humanCategorySub: '代码异常', reason: '代码问题', resolution: 'Patch Applied', issueType: 'NullRef' },
+                                { id: 1003, title: 'Case #1003: Disk Full', description: 'No space left on device /dev/sda1', aiCategoryLarge: '硬件问题', aiCategorySub: '磁盘故障', spdt: '分组B', ipmt: 'YY', status: 'pending', resolution: 'Cleaned Logs', issueType: 'Storage' },
+                                { id: 1008, title: 'Case #1008: Memory Error', description: 'OOM Killer triggered', aiCategoryLarge: '硬件问题', aiCategorySub: '内存溢出', spdt: '分组B', ipmt: 'YY', status: 'pending', resolution: 'Added RAM', issueType: 'Memory' },
 
                                 // Group C: Auth
-                                { id: 1004, title: 'Case #1004: Auth Failed', description: 'User admin login failed: invalid password', aiCategory: '权限不足', spdt: '分组C', ipmt: 'ZZ', status: 'pending', resolution: 'Reset Password', issueType: 'Auth' },
-                                { id: 1009, title: 'Case #1009: 403 Forbidden', description: 'Access denied for resource /api/v1/secret', aiCategory: '权限不足', spdt: '分组C', ipmt: 'ZZ', status: 'pending', resolution: 'Grant Role', issueType: 'Auth' },
+                                { id: 1004, title: 'Case #1004: Auth Failed', description: 'User admin login failed: invalid password', aiCategoryLarge: '安全问题', aiCategorySub: '认证失败', spdt: '分组C', ipmt: 'ZZ', status: 'pending', resolution: 'Reset Password', issueType: 'Auth' },
+                                { id: 1009, title: 'Case #1009: 403 Forbidden', description: 'Access denied for resource /api/v1/secret', aiCategoryLarge: '安全问题', aiCategorySub: '权限拒绝', spdt: '分组C', ipmt: 'ZZ', status: 'pending', resolution: 'Grant Role', issueType: 'Auth' },
                                 
                                 // Group D: Unknown
-                                { id: 1005, title: 'Case #1005: Unknown Signal', description: 'Received signal SIGTERM', aiCategory: '未知原因', spdt: '分组D', ipmt: 'WW', status: 'pending', resolution: 'Investigating', issueType: 'Signal' },
-                                { id: 1010, title: 'Case #1010: Crash', description: 'Process died unexpectedly', aiCategory: '未知原因', spdt: '分组D', ipmt: 'WW', status: 'pending', resolution: 'Check Core Dump', issueType: 'Crash' }
+                                { id: 1005, title: 'Case #1005: Unknown Signal', description: 'Received signal SIGTERM', aiCategoryLarge: '其他', aiCategorySub: '未知原因', spdt: '分组D', ipmt: 'WW', status: 'pending', resolution: 'Investigating', issueType: 'Signal' },
+                                { id: 1010, title: 'Case #1010: Crash', description: 'Process died unexpectedly', aiCategoryLarge: '其他', aiCategorySub: '未知原因', spdt: '分组D', ipmt: 'WW', status: 'pending', resolution: 'Check Core Dump', issueType: 'Crash' }
                             ]
                         },
                         {
@@ -562,7 +575,7 @@
                     const selectedUser = ref('');
                     const correctionDialogVisible = ref(false);
                     const currentIssue = ref(null);
-                    const correctionForm = reactive({ category: '', reason: '' });
+                    const correctionForm = reactive({ categoryLarge: '', categorySub: '', reason: '' });
 
                     // --- Charts ---
                     const initCharts = () => {
@@ -706,22 +719,19 @@
                     const filteredItems = computed(() => {
                         if (!currentTask.value) return [];
                         return currentTask.value.items.filter(item => {
-                            if (filterCategory.value && item.aiCategory !== filterCategory.value) return false;
+                            if (filterCategory.value && item.aiCategoryLarge !== filterCategory.value) return false;
                             if (filterStatus.value === 'pending' && item.status !== 'pending') return false;
                             if (filterStatus.value === 'done' && item.status === 'pending') return false;
                             return true;
                         });
                     });
 
-                    const getSummary = (cat) => {
-                        const map = {
-                            '网络配置错误': '网络连接超时，日志显示多次握手失败...',
-                            '硬件故障': '检测到物理设备响应异常，可能是磁盘损坏或内存溢出...',
-                            '软件Bug': '空指针异常或未捕获的运行时错误，需开发介入...',
-                            '权限不足': '用户尝试访问受限资源，认证失败...',
-                            '未知原因': '异常信号终止，无详细堆栈信息...'
-                        };
-                        return map[cat] || '聚类分析中...';
+                    const getSummary = (large, sub) => {
+                        if (large === '网络问题') return '网络连接超时，日志显示多次握手失败...';
+                        if (large === '硬件问题') return '检测到物理设备响应异常，可能是磁盘损坏或内存溢出...';
+                        if (large === '软件问题') return '空指针异常或未捕获的运行时错误，需开发介入...';
+                        if (large === '安全问题') return '用户尝试访问受限资源，认证失败...';
+                        return '异常信号终止，无详细堆栈信息...';
                     };
 
                     // Updated: Flattened data with span info
@@ -729,7 +739,7 @@
                         const groups = {};
                         // Group items
                         filteredItems.value.forEach(item => {
-                            const key = `${item.spdt}|${item.ipmt}|${item.aiCategory}`;
+                            const key = `${item.spdt}|${item.ipmt}|${item.aiCategoryLarge}|${item.aiCategorySub}`;
                             if (!groups[key]) groups[key] = [];
                             groups[key].push(item);
                         });
@@ -741,7 +751,7 @@
                                 // Create a new object for display to avoid modifying original item
                                 const row = { 
                                     ...item,
-                                    summary: getSummary(item.aiCategory),
+                                    summary: getSummary(item.aiCategoryLarge, item.aiCategorySub),
                                     groupSize: items.length
                                 };
                                 // Mark the first item of the group
@@ -773,7 +783,8 @@
                         }
                         item.status = 'verified';
                         // Reset correction data
-                        item.humanCategory = null;
+                        item.humanCategoryLarge = null;
+                        item.humanCategorySub = null;
                         item.reason = null;
                         ElMessage.success('已标记为准确');
                     };
@@ -783,24 +794,28 @@
                     const openCorrection = (item) => {
                         currentIssue.value = item;
                         if (item.status === 'corrected') {
-                            correctionForm.category = item.humanCategory;
+                            correctionForm.categoryLarge = item.humanCategoryLarge;
+                            correctionForm.categorySub = item.humanCategorySub;
                             correctionForm.reason = item.reason;
                         } else {
-                            correctionForm.category = '';
+                            correctionForm.categoryLarge = '';
+                            correctionForm.categorySub = '';
                             correctionForm.reason = '';
                         }
                         correctionDialogVisible.value = true;
                     };
 
                     const submitCorrection = () => {
-                        if(!correctionForm.category) return ElMessage.warning('选择分类');
+                        if(!correctionForm.categoryLarge || !correctionForm.categorySub) return ElMessage.warning('请完整填写分类信息');
                         
                         if (currentIssue.value.status === 'pending') {
                             currentTask.value.processedCount++;
                         }
 
                         currentIssue.value.status = 'corrected';
-                        currentIssue.value.humanCategory = correctionForm.category;
+                        currentIssue.value.humanCategoryLarge = correctionForm.categoryLarge;
+                        currentIssue.value.humanCategorySub = correctionForm.categorySub;
+                        currentIssue.value.humanCategory = `${correctionForm.categoryLarge} > ${correctionForm.categorySub}`; // Fallback or display helper
                         currentIssue.value.reason = correctionForm.reason;
                         
                         correctionDialogVisible.value = false;
@@ -813,7 +828,8 @@
                              currentTask.value.processedCount++;
                          }
                          item.status = 'verified';
-                         item.humanCategory = null;
+                         item.humanCategoryLarge = null;
+                         item.humanCategorySub = null;
                          item.reason = null;
                          correctionDialogVisible.value = false;
                          ElMessage.success('已更正为准确');
