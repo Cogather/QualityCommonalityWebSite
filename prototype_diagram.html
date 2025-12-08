@@ -372,58 +372,64 @@
                                 </div>
                                 
                                 <div class="modern-card">
-                                    <el-table :data="filteredGroups" style="width: 100%" :default-expand-all="true">
-                                        <el-table-column type="expand">
-                                            <template #default="props">
-                                                <div style="padding: 10px 20px; background: #f8f9fa;">
-                                                    <el-table :data="props.row.items" size="small" border>
-                                                        <el-table-column prop="id" label="ISSUE_NO" width="100"></el-table-column>
-                                                        <el-table-column prop="title" label="PROD / TITLE" width="200"></el-table-column>
-                                                        <el-table-column prop="description" label="DETAILS" min-width="300"></el-table-column>
-                                                        <el-table-column label="STATUS" width="120" align="center">
-                                                            <template #default="{row}">
-                                                                <el-tag v-if="row.status === 'verified'" type="success" size="small">AI准确</el-tag>
-                                                                <el-tag v-else-if="row.status === 'corrected'" type="warning" size="small">已纠错</el-tag>
-                                                                <el-tag v-else type="info" size="small">待校验</el-tag>
-                                                            </template>
-                                                        </el-table-column>
-                                                        <el-table-column label="ACTION" width="200" fixed="right">
-                                                            <template #default="{row}">
-                                                                <div v-if="row.status === 'pending'" style="display: flex; gap: 8px;">
-                                                                    <el-button type="success" size="small" plain @click="verifyIssue(row)">AI准确</el-button>
-                                                                    <el-button type="primary" size="small" plain @click="openCorrection(row)">我要纠错</el-button>
-                                                                </div>
-                                                                <div v-else-if="row.status === 'corrected'" style="font-size: 12px; color: #E6A23C;">
-                                                                    修正为: {{ row.humanCategory }}
-                                                                </div>
-                                                            </template>
-                                                        </el-table-column>
-                                                    </el-table>
+                                    <el-table :data="tableData" style="width: 100%" :span-method="objectSpanMethod" border>
+                                        <!-- Group Columns (Merged) -->
+                                        <el-table-column prop="spdt" label="SPDT" width="100" align="center"></el-table-column>
+                                        <el-table-column prop="ipmt" label="IPMT" width="100" align="center"></el-table-column>
+                                        <el-table-column prop="aiCategory" label="聚类类别" width="120" align="center">
+                                            <template #default="{row}">
+                                                <el-tag>{{ row.aiCategory }}</el-tag>
+                                            </template>
+                                        </el-table-column>
+                                        <el-table-column prop="summary" label="聚类总结" width="200" show-overflow-tooltip>
+                                            <template #default="{row}">
+                                                <span style="color: #666; font-size: 12px;">{{ row.summary }}</span>
+                                            </template>
+                                        </el-table-column>
+                                        <el-table-column label="问题数" width="80" align="center">
+                                            <template #default="{row}">
+                                                <el-badge :value="row.groupSize" type="info" />
+                                            </template>
+                                        </el-table-column>
+
+                                        <!-- Requested Column Order -->
+                                        <!-- 1. 用户矫正类别 (User Correction Category) -->
+                                        <el-table-column label="用户矫正类别" width="180">
+                                            <template #default="{row}">
+                                                <div v-if="row.status === 'pending'" style="display: flex; gap: 8px;">
+                                                    <el-button type="success" size="small" plain @click="verifyIssue(row)">准确</el-button>
+                                                    <el-button type="primary" size="small" plain @click="openCorrection(row)">纠错</el-button>
+                                                </div>
+                                                <div v-else-if="row.status === 'verified'" style="color: #67C23A; font-size: 12px; display: flex; align-items: center; gap: 4px;">
+                                                    <el-icon><Check /></el-icon> AI准确
+                                                </div>
+                                                <div v-else-if="row.status === 'corrected'" style="font-size: 12px; color: #E6A23C; display: flex; align-items: center; gap: 4px;">
+                                                    <el-icon><Edit /></el-icon> {{ row.humanCategory }}
                                                 </div>
                                             </template>
                                         </el-table-column>
-                                        <el-table-column label="SPDT" width="120">
-                                            <template #default>分组A</template>
-                                        </el-table-column>
-                                        <el-table-column label="IPMT" width="100">
-                                            <template #default>XX</template>
-                                        </el-table-column>
-                                        <el-table-column prop="category" label="聚类类别" width="150">
+
+                                        <!-- 2. 矫正说明 (Correction Note) -->
+                                        <el-table-column label="矫正说明" width="150" show-overflow-tooltip>
                                             <template #default="{row}">
-                                                <el-tag>{{ row.category }}</el-tag>
+                                                {{ row.reason || '-' }}
                                             </template>
                                         </el-table-column>
-                                        <el-table-column label="聚类总结" min-width="200">
-                                            <template #default>
-                                                <span style="color: #666; font-size: 13px;">此处为AI生成的该类别问题特征总结...</span>
-                                            </template>
-                                        </el-table-column>
-                                        <el-table-column prop="count" label="问题数" width="100" align="center"></el-table-column>
-                                        <el-table-column label="操作" width="120" fixed="right">
-                                            <template #default="{row}">
-                                                <el-button type="primary" link @click="batchVerify(row)">批量确认</el-button>
-                                            </template>
-                                        </el-table-column>
+
+                                        <!-- 3. PROD_EN_NAME -->
+                                        <el-table-column prop="title" label="PROD_EN_NAME" min-width="180" show-overflow-tooltip></el-table-column>
+                                        
+                                        <!-- 4. RESOLUTION_DETAIL -->
+                                        <el-table-column prop="resolution" label="RESOLUTION_DETAIL" min-width="150" show-overflow-tooltip></el-table-column>
+
+                                        <!-- 5. ISSUE_DETAILS -->
+                                        <el-table-column prop="description" label="ISSUE_DETAILS" min-width="250" show-overflow-tooltip></el-table-column>
+                                        
+                                        <!-- 6. ISSUE_NO -->
+                                        <el-table-column prop="id" label="ISSUE_NO" width="100"></el-table-column>
+                                        
+                                        <!-- 7. ISSUE_TYPE -->
+                                        <el-table-column prop="issueType" label="ISSUE_TYPE" width="120"></el-table-column>
                                     </el-table>
                                 </div>
                             </div>
@@ -516,14 +522,26 @@
                             batchId: 'B-231002-002',
                             fileName: 'issue_logs_q3_02.json',
                             uploadTime: '2023-10-02',
-                            totalCount: 5,
+                            totalCount: 12,
                             processedCount: 2,
                             items: [
-                                { id: 1, title: 'Case #1001: Connection Lost', description: 'Log shows TCP handshake timeout after 30s retry.', aiCategory: '网络配置错误', confidence: 92, status: 'verified' },
-                                { id: 2, title: 'Case #1002: Null Pointer', description: 'Java NullPointerException at Service.java:45', aiCategory: '硬件故障', confidence: 45, status: 'corrected', humanCategory: '软件Bug', reason: '明显的代码空指针' },
-                                { id: 3, title: 'Case #1003: Disk Full', description: 'No space left on device /dev/sda1', aiCategory: '硬件故障', confidence: 88, status: 'pending' },
-                                { id: 4, title: 'Case #1004: Auth Failed', description: 'User admin login failed: invalid password', aiCategory: '权限不足', confidence: 95, status: 'pending' },
-                                { id: 5, title: 'Case #1005: Unknown Signal', description: 'Received signal SIGTERM', aiCategory: '未知原因', confidence: 30, status: 'pending' },
+                                // Group A: Network
+                                { id: 1001, title: 'Case #1001: Connection Lost', description: 'Log shows TCP handshake timeout.', aiCategory: '网络配置错误', spdt: '分组A', ipmt: 'XX', status: 'verified', resolution: 'Restarted Switch', issueType: 'Connectivity' },
+                                { id: 1006, title: 'Case #1006: Timeout', description: 'Connection timed out after 3000ms', aiCategory: '网络配置错误', spdt: '分组A', ipmt: 'XX', status: 'pending', resolution: 'Increased Timeout', issueType: 'Latency' },
+                                { id: 1007, title: 'Case #1007: Reset', description: 'Connection reset by peer', aiCategory: '网络配置错误', spdt: '分组A', ipmt: 'XX', status: 'pending', resolution: 'Check Firewall', issueType: 'Connectivity' },
+                                
+                                // Group B: Hardware
+                                { id: 1002, title: 'Case #1002: Null Pointer', description: 'Java NullPointerException at Service.java:45', aiCategory: '硬件故障', spdt: '分组B', ipmt: 'YY', status: 'corrected', humanCategory: '软件Bug', reason: '代码问题', resolution: 'Patch Applied', issueType: 'NullRef' },
+                                { id: 1003, title: 'Case #1003: Disk Full', description: 'No space left on device /dev/sda1', aiCategory: '硬件故障', spdt: '分组B', ipmt: 'YY', status: 'pending', resolution: 'Cleaned Logs', issueType: 'Storage' },
+                                { id: 1008, title: 'Case #1008: Memory Error', description: 'OOM Killer triggered', aiCategory: '硬件故障', spdt: '分组B', ipmt: 'YY', status: 'pending', resolution: 'Added RAM', issueType: 'Memory' },
+
+                                // Group C: Auth
+                                { id: 1004, title: 'Case #1004: Auth Failed', description: 'User admin login failed: invalid password', aiCategory: '权限不足', spdt: '分组C', ipmt: 'ZZ', status: 'pending', resolution: 'Reset Password', issueType: 'Auth' },
+                                { id: 1009, title: 'Case #1009: 403 Forbidden', description: 'Access denied for resource /api/v1/secret', aiCategory: '权限不足', spdt: '分组C', ipmt: 'ZZ', status: 'pending', resolution: 'Grant Role', issueType: 'Auth' },
+                                
+                                // Group D: Unknown
+                                { id: 1005, title: 'Case #1005: Unknown Signal', description: 'Received signal SIGTERM', aiCategory: '未知原因', spdt: '分组D', ipmt: 'WW', status: 'pending', resolution: 'Investigating', issueType: 'Signal' },
+                                { id: 1010, title: 'Case #1010: Crash', description: 'Process died unexpectedly', aiCategory: '未知原因', spdt: '分组D', ipmt: 'WW', status: 'pending', resolution: 'Check Core Dump', issueType: 'Crash' }
                             ]
                         },
                         {
@@ -678,33 +696,70 @@
                         filterCategory.value = '';
                     };
 
-                    // New: Compute Groups
-                    const filteredGroups = computed(() => {
+                    // Updated: Flat list filtering
+                    const filteredItems = computed(() => {
                         if (!currentTask.value) return [];
-                        
-                        // 1. Group by AI Category
-                        const groupsMap = {};
-                        currentTask.value.items.forEach(item => {
-                            // Filter logic
-                            if (filterCategory.value && item.aiCategory !== filterCategory.value) return;
-                            if (filterStatus.value === 'pending' && item.status !== 'pending') return;
-                            if (filterStatus.value === 'done' && item.status === 'pending') return;
+                        return currentTask.value.items.filter(item => {
+                            if (filterCategory.value && item.aiCategory !== filterCategory.value) return false;
+                            if (filterStatus.value === 'pending' && item.status !== 'pending') return false;
+                            if (filterStatus.value === 'done' && item.status === 'pending') return false;
+                            return true;
+                        });
+                    });
 
-                            if (!groupsMap[item.aiCategory]) {
-                                groupsMap[item.aiCategory] = {
-                                    category: item.aiCategory,
-                                    items: [],
-                                    count: 0
-                                };
-                            }
-                            groupsMap[item.aiCategory].items.push(item);
-                            groupsMap[item.aiCategory].count++;
+                    const getSummary = (cat) => {
+                        const map = {
+                            '网络配置错误': '网络连接超时，日志显示多次握手失败...',
+                            '硬件故障': '检测到物理设备响应异常，可能是磁盘损坏或内存溢出...',
+                            '软件Bug': '空指针异常或未捕获的运行时错误，需开发介入...',
+                            '权限不足': '用户尝试访问受限资源，认证失败...',
+                            '未知原因': '异常信号终止，无详细堆栈信息...'
+                        };
+                        return map[cat] || '聚类分析中...';
+                    };
+
+                    // Updated: Flattened data with span info
+                    const tableData = computed(() => {
+                        const groups = {};
+                        // Group items
+                        filteredItems.value.forEach(item => {
+                            const key = `${item.spdt}|${item.ipmt}|${item.aiCategory}`;
+                            if (!groups[key]) groups[key] = [];
+                            groups[key].push(item);
                         });
 
-                        return Object.values(groupsMap);
+                        const result = [];
+                        Object.keys(groups).forEach(key => {
+                            const items = groups[key];
+                            items.forEach((item, index) => {
+                                // Create a new object for display to avoid modifying original item
+                                const row = { 
+                                    ...item,
+                                    summary: getSummary(item.aiCategory),
+                                    groupSize: items.length
+                                };
+                                // Mark the first item of the group
+                                if (index === 0) {
+                                    row.rowSpan = items.length;
+                                } else {
+                                    row.rowSpan = 0;
+                                }
+                                result.push(row);
+                            });
+                        });
+                        return result;
                     });
-                    
-                    // Removed old filteredItems computed property as we use filteredGroups now
+
+                    const objectSpanMethod = ({ row, column, rowIndex, columnIndex }) => {
+                        // Merge first 5 columns: SPDT, IPMT, Category, Summary, Count
+                        if (columnIndex < 5) {
+                            if (row.rowSpan > 0) {
+                                return { rowspan: row.rowSpan, colspan: 1 };
+                            } else {
+                                return { rowspan: 0, colspan: 0 };
+                            }
+                        }
+                    };
 
                     const verifyIssue = (item) => {
                         item.status = 'verified';
@@ -712,18 +767,7 @@
                         ElMessage.success('Marked as Correct');
                     };
 
-                    const batchVerify = (group) => {
-                        let count = 0;
-                        group.items.forEach(item => {
-                            if (item.status === 'pending') {
-                                item.status = 'verified';
-                                currentTask.value.processedCount++;
-                                count++;
-                            }
-                        });
-                        if (count > 0) ElMessage.success(`Batch verified ${count} issues`);
-                        else ElMessage.info('No pending issues in this group');
-                    };
+                    // const batchVerify = (group) => { ... } // Removed batch verify as groups are gone
 
                     const openCorrection = (item) => {
                         currentIssue.value = item;
@@ -757,13 +801,13 @@
 
                     return {
                         currentRole, activeMenu, trendPeriod, filterStatus,
-                        stats, batches, myTasks, currentTask, filteredGroups, categories,
+                        stats, batches, myTasks, currentTask, filteredItems, tableData, objectSpanMethod, categories,
                         filterCategory,
                         distributeDialogVisible, currentDistributeBatch, selectedUser,
                         correctionDialogVisible, currentIssue, correctionForm,
                         handleRoleChange, handleMenuSelect, handleFileChange,
                         openDistributeDialog, confirmDistribute, enterTask,
-                        verifyIssue, batchVerify, openCorrection, submitCorrection,
+                        verifyIssue, openCorrection, submitCorrection,
                         getStatusType, getStatusText, formatNumber,
                         // Icons (作为变量使用的)
                         Select, EditPen, Upload
