@@ -179,16 +179,7 @@
                             </div>
 
                             <!-- Main Charts -->
-                            <div class="modern-card full-width-chart">
-                                <div class="card-header">
-                                    <span class="card-title">AI模型准确率趋势 (近7天)</span>
-                                    <el-radio-group v-model="trendPeriod" size="small">
-                                        <el-radio-button label="7d">近7天</el-radio-button>
-                                        <el-radio-button label="30d">近30天</el-radio-button>
-                                    </el-radio-group>
-                                </div>
-                                <div id="chart-accuracy-trend" style="height: 300px; width: 100%;"></div>
-                            </div>
+                            <!-- AI Accuracy Trend Chart Removed -->
 
                             <div class="chart-row">
                                 <div class="modern-card">
@@ -213,42 +204,13 @@
                                 <p style="color: #909399; margin: 8px 0 0 0; font-size: 14px;">你好 Operator_01，准备好开始今天的校验工作了吗？</p>
                             </div>
 
-                            <div class="dashboard-grid" style="grid-template-columns: repeat(3, 1fr);">
+                            <div class="dashboard-grid" style="grid-template-columns: 1fr;">
                                 <div class="modern-card">
                                     <div class="stat-item">
                                         <span class="stat-label">我的待办任务</span>
                                         <span class="stat-num" style="color: #409EFF">{{ myTasks.reduce((acc, t) => acc + (t.totalCount - t.processedCount), 0) }}</span>
                                         <span class="stat-trend">涉及 {{ myTasks.length }} 个批次</span>
                                     </div>
-                                </div>
-                                <div class="modern-card">
-                                    <div class="stat-item">
-                                        <span class="stat-label">今日已处理</span>
-                                        <span class="stat-num">128</span>
-                                        <span class="stat-trend trend-up"><el-icon><Top /></el-icon> 排名 Top 3</span>
-                                    </div>
-                                </div>
-                                <div class="modern-card">
-                                    <div class="stat-item">
-                                        <span class="stat-label">累计纠错贡献</span>
-                                        <span class="stat-num">1,402</span>
-                                        <span class="stat-trend">准确率贡献 +0.5%</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="chart-row">
-                                <div class="modern-card">
-                                    <div class="card-header">
-                                        <span class="card-title">我的每日工作量</span>
-                                    </div>
-                                    <div id="chart-user-workload" style="height: 300px; width: 100%;"></div>
-                                </div>
-                                <div class="modern-card">
-                                    <div class="card-header">
-                                        <span class="card-title">我纠正的错误类型分布</span>
-                                    </div>
-                                    <div id="chart-user-correction" style="height: 300px; width: 100%;"></div>
                                 </div>
                             </div>
                             
@@ -592,23 +554,7 @@
                     };
 
                     const initAdminCharts = () => {
-                        const elTrend = document.getElementById('chart-accuracy-trend');
-                        if (elTrend) {
-                            const chart = echarts.init(elTrend);
-                            chart.setOption({
-                                tooltip: { trigger: 'axis' },
-                                grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true, top: '10%' },
-                                xAxis: { type: 'category', boundaryGap: false, data: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] },
-                                yAxis: { type: 'value', min: 80, max: 100 },
-                                series: [{
-                                    name: 'Accuracy', type: 'line', smooth: true, 
-                                    areaStyle: { color: new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:'rgba(64,158,255,0.3)'},{offset:1,color:'rgba(64,158,255,0)'}]) },
-                                    data: [82, 84, 85, 84, 86, 88, 86.5],
-                                    itemStyle: { color: '#409EFF' },
-                                    lineStyle: { width: 3 }
-                                }]
-                            });
-                        }
+                        // Accuracy trend chart removed
 
                         const elBar = document.getElementById('chart-top-error');
                         if (elBar) {
@@ -643,32 +589,7 @@
                     };
 
                     const initUserCharts = () => {
-                        const elWork = document.getElementById('chart-user-workload');
-                        if (elWork) {
-                            const chart = echarts.init(elWork);
-                            chart.setOption({
-                                tooltip: { trigger: 'axis' },
-                                xAxis: { type: 'category', data: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'] },
-                                yAxis: { type: 'value' },
-                                series: [{ type: 'bar', data: [120, 132, 101, 134, 90], itemStyle: { color: '#67C23A' }, barWidth: '40%' }]
-                            });
-                        }
-                        const elPie = document.getElementById('chart-user-correction');
-                        if (elPie) {
-                            const chart = echarts.init(elPie);
-                            chart.setOption({
-                                tooltip: { trigger: 'item' },
-                                series: [{
-                                    type: 'pie', radius: '70%',
-                                    data: [
-                                        { value: 40, name: '纠正为软件Bug' },
-                                        { value: 30, name: '纠正为配置错误' },
-                                        { value: 20, name: '确认AI正确' }, // This logic might need tweak as chart is 'correction' types
-                                        { value: 10, name: '纠正为硬件' }
-                                    ]
-                                }]
-                            });
-                        }
+                        // User charts removed
                     };
 
                     // --- Logic ---
@@ -844,7 +765,7 @@
                     onMounted(() => {
                         initCharts();
                         window.addEventListener('resize', () => {
-                             echarts.getInstanceByDom(document.getElementById('chart-accuracy-trend'))?.resize();
+                             // echarts.getInstanceByDom(document.getElementById('chart-accuracy-trend'))?.resize(); // Removed
                              echarts.getInstanceByDom(document.getElementById('chart-top-error'))?.resize();
                              echarts.getInstanceByDom(document.getElementById('chart-wordcloud'))?.resize();
                         });
