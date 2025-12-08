@@ -120,10 +120,6 @@
                                     <el-icon><Files /></el-icon>
                                     <span>批次分发</span>
                                 </el-menu-item>
-                                <el-menu-item index="model-analysis">
-                                    <el-icon><Trend-Charts /></el-icon>
-                                    <span>模型分析</span>
-                                </el-menu-item>
                             </el-menu-item-group>
                         </template>
 
@@ -133,10 +129,6 @@
                                 <el-menu-item index="my-tasks">
                                     <el-icon><List /></el-icon>
                                     <span>我的任务</span>
-                                </el-menu-item>
-                                <el-menu-item index="history">
-                                    <el-icon><Clock /></el-icon>
-                                    <span>历史记录</span>
                                 </el-menu-item>
                             </el-menu-item-group>
                         </template>
@@ -316,10 +308,11 @@
                                             <span v-else style="color: #ccc;">-</span>
                                         </template>
                                     </el-table-column>
-                                    <el-table-column label="操作" width="150" fixed="right">
+                                    <el-table-column label="操作" width="180" fixed="right">
                                         <template #default="scope">
                                             <el-button v-if="scope.row.status === 'pending'" type="primary" link @click="openDistributeDialog(scope.row)">分发</el-button>
-                                            <el-button v-else type="info" link disabled>已分发</el-button>
+                                            <el-button v-else-if="scope.row.status === 'assigned'" type="warning" link @click="openDistributeDialog(scope.row)">修改分发</el-button>
+                                            <el-button v-else type="info" link disabled>已完成</el-button>
                                             <el-button type="danger" link>删除</el-button>
                                         </template>
                                     </el-table-column>
@@ -400,11 +393,17 @@
                                                     <el-button type="success" size="small" plain @click="verifyIssue(row)">准确</el-button>
                                                     <el-button type="primary" size="small" plain @click="openCorrection(row)">纠错</el-button>
                                                 </div>
-                                                <div v-else-if="row.status === 'verified'" style="color: #67C23A; font-size: 12px; display: flex; align-items: center; gap: 4px;">
-                                                    <el-icon><Check /></el-icon> AI准确
+                                                <div v-else-if="row.status === 'verified'" style="display: flex; align-items: center; justify-content: space-between;">
+                                                    <span style="color: #67C23A; font-size: 12px; display: flex; align-items: center; gap: 4px;">
+                                                        <el-icon><Check /></el-icon> AI准确
+                                                    </span>
+                                                    <el-button type="primary" link size="small" @click="openCorrection(row)">修改</el-button>
                                                 </div>
-                                                <div v-else-if="row.status === 'corrected'" style="font-size: 12px; color: #E6A23C; display: flex; align-items: center; gap: 4px;">
-                                                    <el-icon><Edit /></el-icon> {{ row.humanCategory }}
+                                                <div v-else-if="row.status === 'corrected'" style="display: flex; align-items: center; justify-content: space-between;">
+                                                    <span style="font-size: 12px; color: #E6A23C; display: flex; align-items: center; gap: 4px;">
+                                                        <el-icon><Edit /></el-icon> {{ row.humanCategory }}
+                                                    </span>
+                                                    <el-button type="primary" link size="small" @click="openCorrection(row)">修改</el-button>
                                                 </div>
                                             </template>
                                         </el-table-column>
@@ -464,9 +463,7 @@
                     <el-tag type="info" effect="plain" style="font-size: 14px; padding: 18px;">{{ currentIssue?.aiCategory }}</el-tag>
                 </el-form-item>
                 <el-form-item label="真实类别 (您的判断)">
-                    <el-select v-model="correctionForm.category" placeholder="请选择正确分类" style="width: 100%" size="large">
-                        <el-option v-for="cat in categories" :key="cat" :label="cat" :value="cat"></el-option>
-                    </el-select>
+                    <el-input v-model="correctionForm.category" placeholder="请输入正确分类" style="width: 100%" size="large"></el-input>
                 </el-form-item>
                 <el-form-item label="纠错原因/备注">
                     <el-input type="textarea" v-model="correctionForm.reason" rows="3" placeholder="请简述判断依据，帮助AI更好地学习..."></el-input>
@@ -678,16 +675,20 @@
 
                     const openDistributeDialog = (row) => {
                         currentDistributeBatch.value = row;
-                        selectedUser.value = '';
+                        // 如果已有分发人，则回显
+                        selectedUser.value = row.assignee || '';
                         distributeDialogVisible.value = true;
                     };
 
                     const confirmDistribute = () => {
                         if(!selectedUser.value) return ElMessage.warning('请选择');
+                        
+                        // 更新状态和处理人
                         currentDistributeBatch.value.status = 'assigned';
                         currentDistributeBatch.value.assignee = selectedUser.value;
+                        
                         distributeDialogVisible.value = false;
-                        ElMessage.success('已分发');
+                        ElMessage.success(currentDistributeBatch.value.status === 'assigned' ? '分发信息已更新' : '已分发');
                     };
 
                     const enterTask = (task) => {
@@ -762,28 +763,43 @@
                     };
 
                     const verifyIssue = (item) => {
+                        if (item.status === 'pending') {
+                            currentTask.value.processedCount++;
+                        }
                         item.status = 'verified';
-                        currentTask.value.processedCount++;
-                        ElMessage.success('Marked as Correct');
+                        // Reset correction data
+                        item.humanCategory = null;
+                        item.reason = null;
+                        ElMessage.success('已标记为准确');
                     };
 
                     // const batchVerify = (group) => { ... } // Removed batch verify as groups are gone
 
                     const openCorrection = (item) => {
                         currentIssue.value = item;
-                        correctionForm.category = '';
-                        correctionForm.reason = '';
+                        if (item.status === 'corrected') {
+                            correctionForm.category = item.humanCategory;
+                            correctionForm.reason = item.reason;
+                        } else {
+                            correctionForm.category = '';
+                            correctionForm.reason = '';
+                        }
                         correctionDialogVisible.value = true;
                     };
 
                     const submitCorrection = () => {
                         if(!correctionForm.category) return ElMessage.warning('选择分类');
+                        
+                        if (currentIssue.value.status === 'pending') {
+                            currentTask.value.processedCount++;
+                        }
+
                         currentIssue.value.status = 'corrected';
                         currentIssue.value.humanCategory = correctionForm.category;
                         currentIssue.value.reason = correctionForm.reason;
-                        currentTask.value.processedCount++;
+                        
                         correctionDialogVisible.value = false;
-                        ElMessage.success('Correction Submitted');
+                        ElMessage.success('已提交纠错');
                     };
 
                     const getStatusType = (s) => ({ pending: 'warning', assigned: 'primary', completed: 'success' }[s]);
