@@ -794,12 +794,14 @@
                     const openCorrection = (item) => {
                         currentIssue.value = item;
                         if (item.status === 'corrected') {
+                            // 如果已纠错，回填人工修正的值
                             correctionForm.categoryLarge = item.humanCategoryLarge;
                             correctionForm.categorySub = item.humanCategorySub;
                             correctionForm.reason = item.reason;
                         } else {
-                            correctionForm.categoryLarge = '';
-                            correctionForm.categorySub = '';
+                            // 如果是待办(pending)或已确认(verified)，回填AI预测值作为默认
+                            correctionForm.categoryLarge = item.aiCategoryLarge;
+                            correctionForm.categorySub = item.aiCategorySub;
                             correctionForm.reason = '';
                         }
                         correctionDialogVisible.value = true;
