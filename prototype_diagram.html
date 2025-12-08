@@ -355,76 +355,76 @@
                             <!-- Task Execution -->
                             <div v-else>
                                 <div style="margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between;">
-                                    <el-button @click="currentTask = null" link><el-icon><Back /></el-icon>&nbsp;返回任务列表</el-button>
+                                    <div style="display: flex; gap: 10px; align-items: center;">
+                                        <el-button @click="currentTask = null" link><el-icon><Back /></el-icon>&nbsp;返回任务列表</el-button>
+                                        <el-divider direction="vertical"></el-divider>
+                                        <span style="font-weight: bold;">{{ currentTask.fileName }}</span>
+                                    </div>
                                     <div style="display: flex; gap: 10px;">
+                                        <el-select v-model="filterCategory" placeholder="筛选聚类类别" clearable style="width: 150px">
+                                            <el-option v-for="cat in categories" :key="cat" :label="cat" :value="cat"></el-option>
+                                        </el-select>
                                         <el-button-group>
-                                            <el-button :type="filterStatus==='all'?'primary':''" plain size="small" @click="filterStatus='all'">全部</el-button>
-                                            <el-button :type="filterStatus==='pending'?'primary':''" plain size="small" @click="filterStatus='pending'">待办</el-button>
-                                            <el-button :type="filterStatus==='done'?'primary':''" plain size="small" @click="filterStatus='done'">已完成</el-button>
+                                            <el-button :type="filterStatus==='all'?'primary':''" plain @click="filterStatus='all'">全部</el-button>
+                                            <el-button :type="filterStatus==='pending'?'primary':''" plain @click="filterStatus='pending'">待办</el-button>
                                         </el-button-group>
                                     </div>
                                 </div>
                                 
-                                <div class="modern-card" style="background: #fdfdfd;">
-                                    <div style="margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
-                                        <div>
-                                            <h3 style="margin: 0 0 5px 0;">{{ currentTask.fileName }}</h3>
-                                            <span style="color: #909399; font-size: 13px;">任务批次: {{ currentTask.batchId }}</span>
-                                        </div>
-                                        <div style="text-align: right;">
-                                            <div style="font-size: 24px; font-weight: bold; color: #409EFF;">{{ currentTask.items.filter(i => i.status === 'pending').length }}</div>
-                                            <div style="font-size: 12px; color: #909399;">剩余待校验</div>
-                                        </div>
-                                    </div>
-
-                                    <div class="issue-stream">
-                                        <div v-for="(item, index) in filteredItems" :key="item.id" class="issue-container">
-                                            <div class="issue-header-bar">
-                                                <div style="display: flex; align-items: center; gap: 10px;">
-                                                    <el-tag size="small" type="info">#{{ index + 1 }}</el-tag>
-                                                    <span style="font-weight: 500;">{{ item.title }}</span>
+                                <div class="modern-card">
+                                    <el-table :data="filteredGroups" style="width: 100%" :default-expand-all="true">
+                                        <el-table-column type="expand">
+                                            <template #default="props">
+                                                <div style="padding: 10px 20px; background: #f8f9fa;">
+                                                    <el-table :data="props.row.items" size="small" border>
+                                                        <el-table-column prop="id" label="ISSUE_NO" width="100"></el-table-column>
+                                                        <el-table-column prop="title" label="PROD / TITLE" width="200"></el-table-column>
+                                                        <el-table-column prop="description" label="DETAILS" min-width="300"></el-table-column>
+                                                        <el-table-column label="STATUS" width="120" align="center">
+                                                            <template #default="{row}">
+                                                                <el-tag v-if="row.status === 'verified'" type="success" size="small">AI准确</el-tag>
+                                                                <el-tag v-else-if="row.status === 'corrected'" type="warning" size="small">已纠错</el-tag>
+                                                                <el-tag v-else type="info" size="small">待校验</el-tag>
+                                                            </template>
+                                                        </el-table-column>
+                                                        <el-table-column label="ACTION" width="200" fixed="right">
+                                                            <template #default="{row}">
+                                                                <div v-if="row.status === 'pending'" style="display: flex; gap: 8px;">
+                                                                    <el-button type="success" size="small" plain @click="verifyIssue(row)">AI准确</el-button>
+                                                                    <el-button type="primary" size="small" plain @click="openCorrection(row)">我要纠错</el-button>
+                                                                </div>
+                                                                <div v-else-if="row.status === 'corrected'" style="font-size: 12px; color: #E6A23C;">
+                                                                    修正为: {{ row.humanCategory }}
+                                                                </div>
+                                                            </template>
+                                                        </el-table-column>
+                                                    </el-table>
                                                 </div>
-                                                <el-tag v-if="item.status === 'verified'" type="success" effect="dark" size="small"><el-icon><Select /></el-icon> AI准确</el-tag>
-                                                <el-tag v-else-if="item.status === 'corrected'" type="warning" effect="dark" size="small"><el-icon><Edit /></el-icon> 已人工纠错</el-tag>
-                                                <el-tag v-else type="info" size="small">待校验</el-tag>
-                                            </div>
-                                            
-                                            <div class="issue-content">
-                                                <div style="display: flex; gap: 20px;">
-                                                    <div style="flex: 1;">
-                                                        <div style="margin-bottom: 12px; color: #555; line-height: 1.6;">{{ item.description }}</div>
-                                                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                                                            <el-tag type="info" size="small" v-for="tag in ['Network', 'Timeout', 'Critical']" :key="tag">{{tag}}</el-tag>
-                                                        </div>
-                                                    </div>
-                                                    <div style="width: 280px; padding-left: 20px; border-left: 1px solid #eee;">
-                                                        <div style="margin-bottom: 10px; font-size: 12px; color: #909399; text-transform: uppercase; font-weight: bold;">AI Analysis</div>
-                                                        <div class="ai-badge" style="margin-bottom: 8px; width: 100%; box-sizing: border-box; justify-content: space-between;">
-                                                            <span>{{ item.aiCategory }}</span>
-                                                            <span style="font-size: 12px; opacity: 0.8;">{{ item.confidence }}%</span>
-                                                        </div>
-                                                        <div style="font-size: 12px; color: #909399;">模型判断理由: 关键词匹配 'timeout' 及日志特征向量聚类。</div>
-                                                    </div>
-                                                </div>
-
-                                                <!-- Actions -->
-                                                <div v-if="item.status === 'pending'" style="margin-top: 20px; padding-top: 15px; border-top: 1px dashed #eee; display: flex; justify-content: flex-end; gap: 12px;">
-                                                    <el-button type="success" plain :icon="Select" @click="verifyIssue(item, true)">准确</el-button>
-                                                    <el-button type="warning" plain :icon="EditPen" @click="openCorrection(item)">纠错</el-button>
-                                                </div>
-                                                <div v-else-if="item.status === 'corrected'" style="margin-top: 15px; background: #fdf6ec; padding: 12px; border-radius: 6px; border: 1px solid #fcefd7;">
-                                                    <div style="display: flex; align-items: flex-start; gap: 10px;">
-                                                        <el-icon color="#E6A23C" style="margin-top: 2px;"><Warning /></el-icon>
-                                                        <div>
-                                                            <div style="font-weight: bold; color: #E6A23C; font-size: 14px;">人工修正: {{ item.humanCategory }}</div>
-                                                            <div style="color: #909399; font-size: 13px;">原因: {{ item.reason }}</div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <el-empty v-if="filteredItems.length === 0" description="没有符合条件的记录"></el-empty>
-                                    </div>
+                                            </template>
+                                        </el-table-column>
+                                        <el-table-column label="SPDT" width="120">
+                                            <template #default>分组A</template>
+                                        </el-table-column>
+                                        <el-table-column label="IPMT" width="100">
+                                            <template #default>XX</template>
+                                        </el-table-column>
+                                        <el-table-column prop="category" label="聚类类别" width="150">
+                                            <template #default="{row}">
+                                                <el-tag>{{ row.category }}</el-tag>
+                                            </template>
+                                        </el-table-column>
+                                        <el-table-column label="聚类总结" min-width="200">
+                                            <template #default>
+                                                <span style="color: #666; font-size: 13px;">此处为AI生成的该类别问题特征总结...</span>
+                                            </template>
+                                        </el-table-column>
+                                        <el-table-column prop="count" label="问题数" width="100" align="center"></el-table-column>
+                                        <el-table-column label="操作" width="120" fixed="right">
+                                            <template #default="{row}">
+                                                <el-button type="primary" link @click="batchVerify(row)">批量确认</el-button>
+                                            </template>
+                                        </el-table-column>
+                                    </el-table>
                                 </div>
                             </div>
                         </div>
@@ -493,6 +493,7 @@
                     const activeMenu = ref('dashboard');
                     const trendPeriod = ref('7d');
                     const filterStatus = ref('all'); // all, pending, done
+                    const filterCategory = ref('');
                     
                     // --- Data ---
                     const stats = reactive({
@@ -674,20 +675,54 @@
                     const enterTask = (task) => {
                         currentTask.value = task;
                         filterStatus.value = 'all';
+                        filterCategory.value = '';
                     };
 
-                    const filteredItems = computed(() => {
+                    // New: Compute Groups
+                    const filteredGroups = computed(() => {
                         if (!currentTask.value) return [];
-                        if (filterStatus.value === 'all') return currentTask.value.items;
-                        if (filterStatus.value === 'pending') return currentTask.value.items.filter(i => i.status === 'pending');
-                        if (filterStatus.value === 'done') return currentTask.value.items.filter(i => i.status !== 'pending');
-                        return [];
+                        
+                        // 1. Group by AI Category
+                        const groupsMap = {};
+                        currentTask.value.items.forEach(item => {
+                            // Filter logic
+                            if (filterCategory.value && item.aiCategory !== filterCategory.value) return;
+                            if (filterStatus.value === 'pending' && item.status !== 'pending') return;
+                            if (filterStatus.value === 'done' && item.status === 'pending') return;
+
+                            if (!groupsMap[item.aiCategory]) {
+                                groupsMap[item.aiCategory] = {
+                                    category: item.aiCategory,
+                                    items: [],
+                                    count: 0
+                                };
+                            }
+                            groupsMap[item.aiCategory].items.push(item);
+                            groupsMap[item.aiCategory].count++;
+                        });
+
+                        return Object.values(groupsMap);
                     });
+                    
+                    // Removed old filteredItems computed property as we use filteredGroups now
 
                     const verifyIssue = (item) => {
                         item.status = 'verified';
                         currentTask.value.processedCount++;
                         ElMessage.success('Marked as Correct');
+                    };
+
+                    const batchVerify = (group) => {
+                        let count = 0;
+                        group.items.forEach(item => {
+                            if (item.status === 'pending') {
+                                item.status = 'verified';
+                                currentTask.value.processedCount++;
+                                count++;
+                            }
+                        });
+                        if (count > 0) ElMessage.success(`Batch verified ${count} issues`);
+                        else ElMessage.info('No pending issues in this group');
                     };
 
                     const openCorrection = (item) => {
@@ -722,12 +757,13 @@
 
                     return {
                         currentRole, activeMenu, trendPeriod, filterStatus,
-                        stats, batches, myTasks, currentTask, filteredItems, categories,
+                        stats, batches, myTasks, currentTask, filteredGroups, categories,
+                        filterCategory,
                         distributeDialogVisible, currentDistributeBatch, selectedUser,
                         correctionDialogVisible, currentIssue, correctionForm,
                         handleRoleChange, handleMenuSelect, handleFileChange,
                         openDistributeDialog, confirmDistribute, enterTask,
-                        verifyIssue, openCorrection, submitCorrection,
+                        verifyIssue, batchVerify, openCorrection, submitCorrection,
                         getStatusType, getStatusText, formatNumber,
                         // Icons (作为变量使用的)
                         Select, EditPen, Upload
