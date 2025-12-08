@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI数据飞轮 - 分类校验平台</title>
+    <!-- Vue 3 -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <!-- Element Plus -->
+    <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css">
+    <script src="https://unpkg.com/element-plus/dist/index.full.js"></script>
+    <!-- Icons -->
+    <script src="https://unpkg.com/@element-plus/icons-vue"></script>
+    <!-- ECharts -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <!-- ECharts WordCloud -->
+    <script src="https://unpkg.com/echarts-wordcloud@2.1.0/dist/echarts-wordcloud.min.js"></script>
+
+    <style>
+        :root {
+            --el-color-primary: #409EFF;
+            --el-bg-color: #f5f7fa;
+            --el-text-color-primary: #303133;
+            --el-text-color-regular: #606266;
+        }
+        body { margin: 0; background-color: var(--el-bg-color); font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Microsoft YaHei', Arial, sans-serif; color: var(--el-text-color-primary); }
+        
+        .app-container { display: flex; flex-direction: column; height: 100vh; }
+        .header { background: #fff; height: 60px; border-bottom: 1px solid #dcdfe6; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); z-index: 10; }
+        .logo { font-size: 20px; font-weight: bold; color: #303133; display: flex; align-items: center; gap: 10px; }
+        .main { display: flex; flex: 1; overflow: hidden; }
+        .sidebar { width: 240px; background: #fff; border-right: 1px solid #dcdfe6; display: flex; flex-direction: column; transition: width 0.3s; }
+        .content { flex: 1; padding: 24px; overflow-y: auto; background-color: #f5f7fa; }
+
+        /* Dashboard Grid Layout */
+        .dashboard-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 20px; }
+        .chart-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 20px; }
+        .full-width-chart { margin-bottom: 20px; }
+
+        /* Modern Card Style */
+        .modern-card { background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); border: 1px solid #ebeef5; transition: transform 0.2s, box-shadow 0.2s; height: 100%; box-sizing: border-box; }
+        .modern-card:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.06); }
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+        .card-title { font-size: 16px; font-weight: 600; color: #303133; margin: 0; }
+        
+        /* Stat Items */
+        .stat-item { display: flex; flex-direction: column; }
+        .stat-label { font-size: 14px; color: #909399; margin-bottom: 8px; }
+        .stat-num { font-size: 32px; font-weight: 700; color: #303133; line-height: 1.2; }
+        .stat-trend { font-size: 13px; margin-top: 8px; display: flex; align-items: center; gap: 4px; }
+        .trend-up { color: #67C23A; }
+        .trend-down { color: #F56C6C; }
+
+        /* Task Cards */
+        .task-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+        .task-card { border-left: 4px solid var(--el-color-primary); }
+        .task-card.completed { border-left-color: #67C23A; }
+        
+        /* Issue Item */
+        .issue-container { background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); margin-bottom: 16px; overflow: hidden; }
+        .issue-header-bar { padding: 12px 20px; background: #fafafa; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+        .issue-content { padding: 20px; }
+        .ai-badge { background: linear-gradient(135deg, #ecf5ff 0%, #d9ecff 100%); color: #409EFF; padding: 6px 12px; border-radius: 6px; font-weight: 500; display: inline-flex; align-items: center; gap: 6px; }
+
+        /* Animations */
+        .fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; }
+        .fade-enter-from, .fade-leave-to { opacity: 0; }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="app-container">
+            <!-- Header -->
+            <div class="header">
+                <div class="logo">
+                    <div style="background: #409EFF; width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                        <el-icon color="#fff" :size="20"><Data-Line /></el-icon>
+                    </div>
+                    <span>AI数据飞轮系统</span>
+                    <el-tag :type="currentRole === 'admin' ? 'danger' : 'success'" effect="plain" round size="small" style="margin-left: 8px; font-weight: normal;">
+                        {{ currentRole === 'admin' ? '管理员 (Administrator)' : '普通用户 (User)' }}
+                    </el-tag>
+                </div>
+                <div class="actions" style="display: flex; align-items: center; gap: 20px;">
+                    <div style="display: flex; align-items: center; gap: 10px; background: #f0f2f5; padding: 4px 4px 4px 12px; border-radius: 20px;">
+                        <span style="font-size: 13px; color: #606266;">当前视角</span>
+                        <el-switch
+                            v-model="currentRole"
+                            active-value="admin"
+                            inactive-value="user"
+                            active-text="管理员"
+                            inactive-text="普通用户"
+                            @change="handleRoleChange"
+                            style="--el-switch-on-color: #F56C6C; --el-switch-off-color: #67C23A;"
+                        ></el-switch>
+                    </div>
+                    <el-divider direction="vertical"></el-divider>
+                    <div style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <el-avatar :size="32" :src="currentRole === 'admin' ? 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png' : 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png'"></el-avatar>
+                        <span style="font-size: 14px; font-weight: 500;">{{ currentRole === 'admin' ? 'Admin' : 'Operator_01' }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="main">
+                <!-- Sidebar -->
+                <div class="sidebar">
+                    <el-menu :default-active="activeMenu" @select="handleMenuSelect" text-color="#606266" active-text-color="#409EFF" style="border: none; padding-top: 10px;">
+                        
+                        <!-- Common Menu -->
+                        <el-menu-item index="dashboard">
+                            <el-icon><Odometer /></el-icon>
+                            <span>{{ currentRole === 'admin' ? '全局概览' : '个人中心' }}</span>
+                        </el-menu-item>
+
+                        <!-- Admin Specific -->
+                        <template v-if="currentRole === 'admin'">
+                            <el-menu-item-group title="数据管理">
+                                <el-menu-item index="batch-manage">
+                                    <el-icon><Files /></el-icon>
+                                    <span>批次分发</span>
+                                </el-menu-item>
+                                <el-menu-item index="model-analysis">
+                                    <el-icon><Trend-Charts /></el-icon>
+                                    <span>模型分析</span>
+                                </el-menu-item>
+                            </el-menu-item-group>
+                        </template>
+
+                        <!-- User Specific -->
+                        <template v-if="currentRole === 'user'">
+                             <el-menu-item-group title="任务中心">
+                                <el-menu-item index="my-tasks">
+                                    <el-icon><List /></el-icon>
+                                    <span>我的任务</span>
+                                </el-menu-item>
+                                <el-menu-item index="history">
+                                    <el-icon><Clock /></el-icon>
+                                    <span>历史记录</span>
+                                </el-menu-item>
+                            </el-menu-item-group>
+                        </template>
+                    </el-menu>
+                </div>
+
+                <!-- Content Area -->
+                <div class="content">
+                    <transition name="fade" mode="out-in">
+                        
+                        <!-- ================= ADMIN DASHBOARD ================= -->
+                        <div v-if="currentRole === 'admin' && activeMenu === 'dashboard'" key="admin-dash">
+                            <div style="margin-bottom: 24px;">
+                                <h2 style="margin: 0; font-weight: 600;">欢迎回来，管理员</h2>
+                                <p style="color: #909399; margin: 8px 0 0 0; font-size: 14px;">以下是今日的AI模型表现及人工校验进度概览。</p>
+                            </div>
+
+                            <!-- Top Stats -->
+                            <div class="dashboard-grid">
+                                <div class="modern-card">
+                                    <div class="stat-item">
+                                        <span class="stat-label">AI预测总数 (条)</span>
+                                        <span class="stat-num">{{ formatNumber(stats.totalPredictions) }}</span>
+                                        <span class="stat-trend trend-up"><el-icon><Top /></el-icon> 较昨日 +12%</span>
+                                    </div>
+                                </div>
+                                <div class="modern-card">
+                                    <div class="stat-item">
+                                        <span class="stat-label">模型准确率 (Accuracy)</span>
+                                        <span class="stat-num">{{ stats.accuracy }}%</span>
+                                        <span class="stat-trend trend-up"><el-icon><Top /></el-icon> 较上周 +1.2%</span>
+                                    </div>
+                                </div>
+                                <div class="modern-card">
+                                    <div class="stat-item">
+                                        <span class="stat-label">待分发任务 (批次)</span>
+                                        <span class="stat-num" style="color: #E6A23C">{{ stats.pendingBatches }}</span>
+                                        <span class="stat-trend trend-down" style="color: #909399;">正常积压</span>
+                                    </div>
+                                </div>
+                                <div class="modern-card">
+                                    <div class="stat-item">
+                                        <span class="stat-label">人工校验完成率</span>
+                                        <span class="stat-num">{{ stats.correctionProgress }}%</span>
+                                        <el-progress :percentage="stats.correctionProgress" :show-text="false" stroke-width="6" style="margin-top: 10px;"></el-progress>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Main Charts -->
+                            <div class="modern-card full-width-chart">
+                                <div class="card-header">
+                                    <span class="card-title">AI模型准确率趋势 (近7天)</span>
+                                    <el-radio-group v-model="trendPeriod" size="small">
+                                        <el-radio-button label="7d">近7天</el-radio-button>
+                                        <el-radio-button label="30d">近30天</el-radio-button>
+                                    </el-radio-group>
+                                </div>
+                                <div id="chart-accuracy-trend" style="height: 300px; width: 100%;"></div>
+                            </div>
+
+                            <div class="chart-row">
+                                <div class="modern-card">
+                                    <div class="card-header">
+                                        <span class="card-title">Top 5 预测错误类别</span>
+                                    </div>
+                                    <div id="chart-top-error" style="height: 300px; width: 100%;"></div>
+                                </div>
+                                <div class="modern-card">
+                                    <div class="card-header">
+                                        <span class="card-title">问题分类词云分布</span>
+                                    </div>
+                                    <div id="chart-wordcloud" style="height: 300px; width: 100%;"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ================= USER DASHBOARD ================= -->
+                        <div v-else-if="currentRole === 'user' && activeMenu === 'dashboard'" key="user-dash">
+                            <div style="margin-bottom: 24px;">
+                                <h2 style="margin: 0; font-weight: 600;">工作台</h2>
+                                <p style="color: #909399; margin: 8px 0 0 0; font-size: 14px;">你好 Operator_01，准备好开始今天的校验工作了吗？</p>
+                            </div>
+
+                            <div class="dashboard-grid" style="grid-template-columns: repeat(3, 1fr);">
+                                <div class="modern-card">
+                                    <div class="stat-item">
+                                        <span class="stat-label">我的待办任务</span>
+                                        <span class="stat-num" style="color: #409EFF">{{ myTasks.reduce((acc, t) => acc + (t.totalCount - t.processedCount), 0) }}</span>
+                                        <span class="stat-trend">涉及 {{ myTasks.length }} 个批次</span>
+                                    </div>
+                                </div>
+                                <div class="modern-card">
+                                    <div class="stat-item">
+                                        <span class="stat-label">今日已处理</span>
+                                        <span class="stat-num">128</span>
+                                        <span class="stat-trend trend-up"><el-icon><Top /></el-icon> 排名 Top 3</span>
+                                    </div>
+                                </div>
+                                <div class="modern-card">
+                                    <div class="stat-item">
+                                        <span class="stat-label">累计纠错贡献</span>
+                                        <span class="stat-num">1,402</span>
+                                        <span class="stat-trend">准确率贡献 +0.5%</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="chart-row">
+                                <div class="modern-card">
+                                    <div class="card-header">
+                                        <span class="card-title">我的每日工作量</span>
+                                    </div>
+                                    <div id="chart-user-workload" style="height: 300px; width: 100%;"></div>
+                                </div>
+                                <div class="modern-card">
+                                    <div class="card-header">
+                                        <span class="card-title">我纠正的错误类型分布</span>
+                                    </div>
+                                    <div id="chart-user-correction" style="height: 300px; width: 100%;"></div>
+                                </div>
+                            </div>
+                            
+                            <div class="modern-card">
+                                <div class="card-header">
+                                    <span class="card-title">快捷入口：最近的任务</span>
+                                    <el-button type="primary" link @click="activeMenu='my-tasks'">查看全部 <el-icon><Arrow-Right /></el-icon></el-button>
+                                </div>
+                                <el-table :data="myTasks.slice(0, 3)" style="width: 100%">
+                                    <el-table-column prop="fileName" label="批次文件"></el-table-column>
+                                    <el-table-column label="进度" width="300">
+                                        <template #default="scope">
+                                            <div style="display: flex; align-items: center; gap: 10px;">
+                                                <el-progress :percentage="Math.round((scope.row.processedCount/scope.row.totalCount)*100)" style="flex: 1"></el-progress>
+                                                <span style="font-size: 12px; color: #909399;">{{scope.row.processedCount}}/{{scope.row.totalCount}}</span>
+                                            </div>
+                                        </template>
+                                    </el-table-column>
+                                    <el-table-column align="right">
+                                        <template #default="scope">
+                                            <el-button size="small" type="primary" plain round @click="enterTask(scope.row)">继续校验</el-button>
+                                        </template>
+                                    </el-table-column>
+                                </el-table>
+                            </div>
+                        </div>
+
+                        <!-- ================= BATCH MANAGEMENT (ADMIN) ================= -->
+                        <div v-else-if="activeMenu === 'batch-manage'" key="batch">
+                            <div class="card-header">
+                                <h2 style="margin: 0;">批次分发管理</h2>
+                                <el-upload action="#" :show-file-list="false" :auto-upload="false" :on-change="handleFileChange">
+                                    <el-button type="primary" :icon="Upload">上传新批次 (JSON)</el-button>
+                                </el-upload>
+                            </div>
+                            <div class="modern-card" style="margin-top: 20px;">
+                                <el-table :data="batches" stripe style="width: 100%" size="large">
+                                    <el-table-column prop="batchId" label="批次ID" width="180">
+                                        <template #default="{row}">
+                                            <span style="font-family: monospace;">{{ row.batchId }}</span>
+                                        </template>
+                                    </el-table-column>
+                                    <el-table-column prop="fileName" label="文件名" min-width="200"></el-table-column>
+                                    <el-table-column prop="uploadTime" label="上传时间" width="180" sortable></el-table-column>
+                                    <el-table-column prop="totalCount" label="数据量" width="120" align="center"></el-table-column>
+                                    <el-table-column prop="status" label="状态" width="120">
+                                        <template #default="scope">
+                                            <el-tag :type="getStatusType(scope.row.status)" effect="light">{{ getStatusText(scope.row.status) }}</el-tag>
+                                        </template>
+                                    </el-table-column>
+                                    <el-table-column prop="assignee" label="当前处理人" width="150">
+                                        <template #default="scope">
+                                            <div v-if="scope.row.assignee" style="display: flex; align-items: center; gap: 5px;">
+                                                <el-avatar :size="20" style="background: #409EFF">{{ scope.row.assignee.substring(0,1) }}</el-avatar>
+                                                {{ scope.row.assignee }}
+                                            </div>
+                                            <span v-else style="color: #ccc;">-</span>
+                                        </template>
+                                    </el-table-column>
+                                    <el-table-column label="操作" width="150" fixed="right">
+                                        <template #default="scope">
+                                            <el-button v-if="scope.row.status === 'pending'" type="primary" link @click="openDistributeDialog(scope.row)">分发</el-button>
+                                            <el-button v-else type="info" link disabled>已分发</el-button>
+                                            <el-button type="danger" link>删除</el-button>
+                                        </template>
+                                    </el-table-column>
+                                </el-table>
+                            </div>
+                        </div>
+
+                        <!-- ================= MY TASKS (USER) ================= -->
+                        <div v-else-if="activeMenu === 'my-tasks'" key="mytasks">
+                            <!-- Task List -->
+                            <div v-if="!currentTask">
+                                <h2 style="margin-bottom: 24px;">我的校验任务</h2>
+                                <div class="task-list">
+                                    <div v-for="task in myTasks" :key="task.batchId" class="modern-card task-card" :class="{ completed: task.processedCount === task.totalCount }" style="cursor: pointer; padding: 20px;" @click="enterTask(task)">
+                                        <div style="display: flex; justify-content: space-between; margin-bottom: 15px;">
+                                            <el-tag :type="task.processedCount === task.totalCount ? 'success' : 'primary'" effect="dark" size="small">
+                                                {{ task.processedCount === task.totalCount ? '已完成' : '进行中' }}
+                                            </el-tag>
+                                            <span style="font-size: 12px; color: #999;">{{ task.uploadTime }}</span>
+                                        </div>
+                                        <h3 style="margin: 0 0 10px 0; font-size: 16px;">{{ task.fileName }}</h3>
+                                        <p style="color: #666; font-size: 13px; margin: 0 0 20px 0;">批次号: {{ task.batchId }}</p>
+                                        
+                                        <div style="margin-bottom: 5px; display: flex; justify-content: space-between; font-size: 12px; color: #666;">
+                                            <span>进度</span>
+                                            <span>{{ Math.round((task.processedCount/task.totalCount)*100) }}%</span>
+                                        </div>
+                                        <el-progress :percentage="Math.round((task.processedCount/task.totalCount)*100)" :show-text="false"></el-progress>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Task Execution -->
+                            <div v-else>
+                                <div style="margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between;">
+                                    <el-button @click="currentTask = null" link><el-icon><Back /></el-icon>&nbsp;返回任务列表</el-button>
+                                    <div style="display: flex; gap: 10px;">
+                                        <el-button-group>
+                                            <el-button :type="filterStatus==='all'?'primary':''" plain size="small" @click="filterStatus='all'">全部</el-button>
+                                            <el-button :type="filterStatus==='pending'?'primary':''" plain size="small" @click="filterStatus='pending'">待办</el-button>
+                                            <el-button :type="filterStatus==='done'?'primary':''" plain size="small" @click="filterStatus='done'">已完成</el-button>
+                                        </el-button-group>
+                                    </div>
+                                </div>
+                                
+                                <div class="modern-card" style="background: #fdfdfd;">
+                                    <div style="margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+                                        <div>
+                                            <h3 style="margin: 0 0 5px 0;">{{ currentTask.fileName }}</h3>
+                                            <span style="color: #909399; font-size: 13px;">任务批次: {{ currentTask.batchId }}</span>
+                                        </div>
+                                        <div style="text-align: right;">
+                                            <div style="font-size: 24px; font-weight: bold; color: #409EFF;">{{ currentTask.items.filter(i => i.status === 'pending').length }}</div>
+                                            <div style="font-size: 12px; color: #909399;">剩余待校验</div>
+                                        </div>
+                                    </div>
+
+                                    <div class="issue-stream">
+                                        <div v-for="(item, index) in filteredItems" :key="item.id" class="issue-container">
+                                            <div class="issue-header-bar">
+                                                <div style="display: flex; align-items: center; gap: 10px;">
+                                                    <el-tag size="small" type="info">#{{ index + 1 }}</el-tag>
+                                                    <span style="font-weight: 500;">{{ item.title }}</span>
+                                                </div>
+                                                <el-tag v-if="item.status === 'verified'" type="success" effect="dark" size="small"><el-icon><Select /></el-icon> AI准确</el-tag>
+                                                <el-tag v-else-if="item.status === 'corrected'" type="warning" effect="dark" size="small"><el-icon><Edit /></el-icon> 已人工纠错</el-tag>
+                                                <el-tag v-else type="info" size="small">待校验</el-tag>
+                                            </div>
+                                            
+                                            <div class="issue-content">
+                                                <div style="display: flex; gap: 20px;">
+                                                    <div style="flex: 1;">
+                                                        <div style="margin-bottom: 12px; color: #555; line-height: 1.6;">{{ item.description }}</div>
+                                                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                                                            <el-tag type="info" size="small" v-for="tag in ['Network', 'Timeout', 'Critical']" :key="tag">{{tag}}</el-tag>
+                                                        </div>
+                                                    </div>
+                                                    <div style="width: 280px; padding-left: 20px; border-left: 1px solid #eee;">
+                                                        <div style="margin-bottom: 10px; font-size: 12px; color: #909399; text-transform: uppercase; font-weight: bold;">AI Analysis</div>
+                                                        <div class="ai-badge" style="margin-bottom: 8px; width: 100%; box-sizing: border-box; justify-content: space-between;">
+                                                            <span>{{ item.aiCategory }}</span>
+                                                            <span style="font-size: 12px; opacity: 0.8;">{{ item.confidence }}%</span>
+                                                        </div>
+                                                        <div style="font-size: 12px; color: #909399;">模型判断理由: 关键词匹配 'timeout' 及日志特征向量聚类。</div>
+                                                    </div>
+                                                </div>
+
+                                                <!-- Actions -->
+                                                <div v-if="item.status === 'pending'" style="margin-top: 20px; padding-top: 15px; border-top: 1px dashed #eee; display: flex; justify-content: flex-end; gap: 12px;">
+                                                    <el-button type="success" plain :icon="Select" @click="verifyIssue(item, true)">准确</el-button>
+                                                    <el-button type="warning" plain :icon="EditPen" @click="openCorrection(item)">纠错</el-button>
+                                                </div>
+                                                <div v-else-if="item.status === 'corrected'" style="margin-top: 15px; background: #fdf6ec; padding: 12px; border-radius: 6px; border: 1px solid #fcefd7;">
+                                                    <div style="display: flex; align-items: flex-start; gap: 10px;">
+                                                        <el-icon color="#E6A23C" style="margin-top: 2px;"><Warning /></el-icon>
+                                                        <div>
+                                                            <div style="font-weight: bold; color: #E6A23C; font-size: 14px;">人工修正: {{ item.humanCategory }}</div>
+                                                            <div style="color: #909399; font-size: 13px;">原因: {{ item.reason }}</div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <el-empty v-if="filteredItems.length === 0" description="没有符合条件的记录"></el-empty>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </transition>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dialogs -->
+        <el-dialog v-model="distributeDialogVisible" title="分发任务" width="400px" destroy-on-close>
+            <p>正在分发批次：<strong>{{ currentDistributeBatch?.fileName }}</strong></p>
+            <el-form label-position="top">
+                <el-form-item label="选择校验人员">
+                    <el-select v-model="selectedUser" placeholder="请选择用户" style="width: 100%">
+                        <el-option label="张三 (User001)" value="User001"></el-option>
+                        <el-option label="李四 (User002)" value="User002"></el-option>
+                        <el-option label="王五 (User003)" value="User003"></el-option>
+                    </el-select>
+                </el-form-item>
+            </el-form>
+            <template #footer>
+                <el-button @click="distributeDialogVisible = false">取消</el-button>
+                <el-button type="primary" @click="confirmDistribute">确认分发</el-button>
+            </template>
+        </el-dialog>
+
+        <el-dialog v-model="correctionDialogVisible" title="人工纠错反馈" width="500px">
+            <el-form :model="correctionForm" label-position="top">
+                <el-form-item label="AI 预测结果">
+                    <el-tag type="info" effect="plain" style="font-size: 14px; padding: 18px;">{{ currentIssue?.aiCategory }}</el-tag>
+                </el-form-item>
+                <el-form-item label="真实类别 (您的判断)">
+                    <el-select v-model="correctionForm.category" placeholder="请选择正确分类" style="width: 100%" size="large">
+                        <el-option v-for="cat in categories" :key="cat" :label="cat" :value="cat"></el-option>
+                    </el-select>
+                </el-form-item>
+                <el-form-item label="纠错原因/备注">
+                    <el-input type="textarea" v-model="correctionForm.reason" rows="3" placeholder="请简述判断依据，帮助AI更好地学习..."></el-input>
+                </el-form-item>
+            </el-form>
+            <template #footer>
+                <el-button @click="correctionDialogVisible = false">取消</el-button>
+                <el-button type="primary" @click="submitCorrection">提交修正</el-button>
+            </template>
+        </el-dialog>
+
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const { createApp, ref, reactive, onMounted, nextTick, computed } = Vue;
+            const { ElMessage } = ElementPlus;
+            
+            // 安全处理图标加载
+            const ElementPlusIconsVue = window.ElementPlusIconsVue || {};
+
+            const app = createApp({
+                setup() {
+                    // 安全解构图标
+                    const Select = ElementPlusIconsVue.Select || 'span';
+                    const EditPen = ElementPlusIconsVue.EditPen || 'span';
+                    const Upload = ElementPlusIconsVue.Upload || 'span';
+
+                    const currentRole = ref('admin'); 
+                    const activeMenu = ref('dashboard');
+                    const trendPeriod = ref('7d');
+                    const filterStatus = ref('all'); // all, pending, done
+                    
+                    // --- Data ---
+                    const stats = reactive({
+                        totalPredictions: 12580,
+                        pendingBatches: 2,
+                        accuracy: 86.5,
+                        correctionProgress: 68
+                    });
+
+                    const categories = ['硬件故障', '网络配置错误', '软件Bug', '权限不足', '数据同步异常', '用户操作失误', '环境因素', '未知原因'];
+
+                    const batches = ref([
+                        { batchId: 'B-231001-001', uploadTime: '2023-10-01 10:00', fileName: 'issue_logs_q3_01.json', totalCount: 100, status: 'completed', assignee: 'User001' },
+                        { batchId: 'B-231002-002', uploadTime: '2023-10-02 14:30', fileName: 'issue_logs_q3_02.json', totalCount: 150, status: 'assigned', assignee: 'User001' },
+                        { batchId: 'B-231003-003', uploadTime: '2023-10-03 09:15', fileName: 'urgent_issues_v2.json', totalCount: 50, status: 'pending', assignee: null },
+                    ]);
+
+                    const myTasks = ref([
+                        {
+                            batchId: 'B-231002-002',
+                            fileName: 'issue_logs_q3_02.json',
+                            uploadTime: '2023-10-02',
+                            totalCount: 5,
+                            processedCount: 2,
+                            items: [
+                                { id: 1, title: 'Case #1001: Connection Lost', description: 'Log shows TCP handshake timeout after 30s retry.', aiCategory: '网络配置错误', confidence: 92, status: 'verified' },
+                                { id: 2, title: 'Case #1002: Null Pointer', description: 'Java NullPointerException at Service.java:45', aiCategory: '硬件故障', confidence: 45, status: 'corrected', humanCategory: '软件Bug', reason: '明显的代码空指针' },
+                                { id: 3, title: 'Case #1003: Disk Full', description: 'No space left on device /dev/sda1', aiCategory: '硬件故障', confidence: 88, status: 'pending' },
+                                { id: 4, title: 'Case #1004: Auth Failed', description: 'User admin login failed: invalid password', aiCategory: '权限不足', confidence: 95, status: 'pending' },
+                                { id: 5, title: 'Case #1005: Unknown Signal', description: 'Received signal SIGTERM', aiCategory: '未知原因', confidence: 30, status: 'pending' },
+                            ]
+                        },
+                        {
+                            batchId: 'B-231001-001',
+                            fileName: 'issue_logs_q3_01.json',
+                            uploadTime: '2023-10-01',
+                            totalCount: 100,
+                            processedCount: 100,
+                            items: [] // simulated completed task
+                        }
+                    ]);
+
+                    const currentTask = ref(null);
+                    const distributeDialogVisible = ref(false);
+                    const currentDistributeBatch = ref(null);
+                    const selectedUser = ref('');
+                    const correctionDialogVisible = ref(false);
+                    const currentIssue = ref(null);
+                    const correctionForm = reactive({ category: '', reason: '' });
+
+                    // --- Charts ---
+                    const initCharts = () => {
+                        nextTick(() => {
+                            // Admin Charts
+                            if (currentRole.value === 'admin' && activeMenu.value === 'dashboard') {
+                                initAdminCharts();
+                            }
+                            // User Charts
+                            if (currentRole.value === 'user' && activeMenu.value === 'dashboard') {
+                                initUserCharts();
+                            }
+                        });
+                    };
+
+                    const initAdminCharts = () => {
+                        const elTrend = document.getElementById('chart-accuracy-trend');
+                        if (elTrend) {
+                            const chart = echarts.init(elTrend);
+                            chart.setOption({
+                                tooltip: { trigger: 'axis' },
+                                grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true, top: '10%' },
+                                xAxis: { type: 'category', boundaryGap: false, data: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] },
+                                yAxis: { type: 'value', min: 80, max: 100 },
+                                series: [{
+                                    name: 'Accuracy', type: 'line', smooth: true, 
+                                    areaStyle: { color: new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:'rgba(64,158,255,0.3)'},{offset:1,color:'rgba(64,158,255,0)'}]) },
+                                    data: [82, 84, 85, 84, 86, 88, 86.5],
+                                    itemStyle: { color: '#409EFF' },
+                                    lineStyle: { width: 3 }
+                                }]
+                            });
+                        }
+
+                        const elBar = document.getElementById('chart-top-error');
+                        if (elBar) {
+                            const chart = echarts.init(elBar);
+                            chart.setOption({
+                                tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+                                grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+                                xAxis: { type: 'value' },
+                                yAxis: { type: 'category', data: ['网络配置', '软件Bug', '硬件故障', '数据异常', '权限'].reverse() },
+                                series: [{ type: 'bar', data: [320, 250, 180, 120, 80].reverse(), itemStyle: { color: '#F56C6C', borderRadius: [0,4,4,0] }, barWidth: '60%' }]
+                            });
+                        }
+
+                        const elCloud = document.getElementById('chart-wordcloud');
+                        if (elCloud) {
+                            const chart = echarts.init(elCloud);
+                            chart.setOption({
+                                 tooltip: { trigger: 'item' },
+                                 legend: { bottom: 0, left: 'center' },
+                                 series: [{
+                                     type: 'pie', radius: ['40%', '70%'], avoidLabelOverlap: false,
+                                     itemStyle: { borderRadius: 8, borderColor: '#fff', borderWidth: 2 },
+                                     label: { show: false },
+                                     data: [
+                                         { value: 1048, name: '网络' }, { value: 735, name: '数据库' },
+                                         { value: 580, name: '权限' }, { value: 484, name: 'IO错误' },
+                                         { value: 300, name: '其他' }
+                                     ]
+                                 }]
+                            });
+                        }
+                    };
+
+                    const initUserCharts = () => {
+                        const elWork = document.getElementById('chart-user-workload');
+                        if (elWork) {
+                            const chart = echarts.init(elWork);
+                            chart.setOption({
+                                tooltip: { trigger: 'axis' },
+                                xAxis: { type: 'category', data: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'] },
+                                yAxis: { type: 'value' },
+                                series: [{ type: 'bar', data: [120, 132, 101, 134, 90], itemStyle: { color: '#67C23A' }, barWidth: '40%' }]
+                            });
+                        }
+                        const elPie = document.getElementById('chart-user-correction');
+                        if (elPie) {
+                            const chart = echarts.init(elPie);
+                            chart.setOption({
+                                tooltip: { trigger: 'item' },
+                                series: [{
+                                    type: 'pie', radius: '70%',
+                                    data: [
+                                        { value: 40, name: '纠正为软件Bug' },
+                                        { value: 30, name: '纠正为配置错误' },
+                                        { value: 20, name: '确认AI正确' }, // This logic might need tweak as chart is 'correction' types
+                                        { value: 10, name: '纠正为硬件' }
+                                    ]
+                                }]
+                            });
+                        }
+                    };
+
+                    // --- Logic ---
+                    const handleRoleChange = () => {
+                        activeMenu.value = 'dashboard';
+                        currentTask.value = null; // Reset nested views
+                        setTimeout(initCharts, 100);
+                    };
+
+                    const handleMenuSelect = (key) => {
+                        activeMenu.value = key;
+                        if (key === 'dashboard') setTimeout(initCharts, 100);
+                    };
+
+                    const handleFileChange = (file) => {
+                        ElMessage.success(`文件 ${file.name} 已添加到列表`);
+                        batches.value.unshift({
+                            batchId: `B-23100${batches.value.length+4}`, uploadTime: new Date().toLocaleString(),
+                            fileName: file.name, totalCount: Math.floor(Math.random()*100)+50, status: 'pending', assignee: null
+                        });
+                    };
+
+                    const openDistributeDialog = (row) => {
+                        currentDistributeBatch.value = row;
+                        selectedUser.value = '';
+                        distributeDialogVisible.value = true;
+                    };
+
+                    const confirmDistribute = () => {
+                        if(!selectedUser.value) return ElMessage.warning('请选择');
+                        currentDistributeBatch.value.status = 'assigned';
+                        currentDistributeBatch.value.assignee = selectedUser.value;
+                        distributeDialogVisible.value = false;
+                        ElMessage.success('已分发');
+                    };
+
+                    const enterTask = (task) => {
+                        currentTask.value = task;
+                        filterStatus.value = 'all';
+                    };
+
+                    const filteredItems = computed(() => {
+                        if (!currentTask.value) return [];
+                        if (filterStatus.value === 'all') return currentTask.value.items;
+                        if (filterStatus.value === 'pending') return currentTask.value.items.filter(i => i.status === 'pending');
+                        if (filterStatus.value === 'done') return currentTask.value.items.filter(i => i.status !== 'pending');
+                        return [];
+                    });
+
+                    const verifyIssue = (item) => {
+                        item.status = 'verified';
+                        currentTask.value.processedCount++;
+                        ElMessage.success('Marked as Correct');
+                    };
+
+                    const openCorrection = (item) => {
+                        currentIssue.value = item;
+                        correctionForm.category = '';
+                        correctionForm.reason = '';
+                        correctionDialogVisible.value = true;
+                    };
+
+                    const submitCorrection = () => {
+                        if(!correctionForm.category) return ElMessage.warning('选择分类');
+                        currentIssue.value.status = 'corrected';
+                        currentIssue.value.humanCategory = correctionForm.category;
+                        currentIssue.value.reason = correctionForm.reason;
+                        currentTask.value.processedCount++;
+                        correctionDialogVisible.value = false;
+                        ElMessage.success('Correction Submitted');
+                    };
+
+                    const getStatusType = (s) => ({ pending: 'warning', assigned: 'primary', completed: 'success' }[s]);
+                    const getStatusText = (s) => ({ pending: '待分发', assigned: '校验中', completed: '已完成' }[s]);
+                    const formatNumber = (num) => num.toLocaleString();
+
+                    onMounted(() => {
+                        initCharts();
+                        window.addEventListener('resize', () => {
+                             echarts.getInstanceByDom(document.getElementById('chart-accuracy-trend'))?.resize();
+                             echarts.getInstanceByDom(document.getElementById('chart-top-error'))?.resize();
+                             echarts.getInstanceByDom(document.getElementById('chart-wordcloud'))?.resize();
+                        });
+                    });
+
+                    return {
+                        currentRole, activeMenu, trendPeriod, filterStatus,
+                        stats, batches, myTasks, currentTask, filteredItems, categories,
+                        distributeDialogVisible, currentDistributeBatch, selectedUser,
+                        correctionDialogVisible, currentIssue, correctionForm,
+                        handleRoleChange, handleMenuSelect, handleFileChange,
+                        openDistributeDialog, confirmDistribute, enterTask,
+                        verifyIssue, openCorrection, submitCorrection,
+                        getStatusType, getStatusText, formatNumber,
+                        // Icons (作为变量使用的)
+                        Select, EditPen, Upload
+                    };
+                }
+            });
+
+            // 只有当图标库加载成功时才注册所有图标
+            if (window.ElementPlusIconsVue) {
+                for (const [key, component] of Object.entries(window.ElementPlusIconsVue)) {
+                    app.component(key, component);
+                }
+            }
+            
+            app.use(ElementPlus);
+            app.mount('#app');
+        });
+    </script>
+</body>
+</html>
