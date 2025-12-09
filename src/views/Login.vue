@@ -49,12 +49,29 @@ const handleLogin = async () => {
       loading.value = true
       try {
         const data = await login(loginForm)
+        
+        // Normalize role to lowercase
+        if (data.user && data.user.role) {
+            data.user.role = data.user.role.toLowerCase()
+        } else {
+            // Fallback if no user object or role returned (e.g. if using mock without proper structure)
+            const u = loginForm.username.toLowerCase()
+            if (!data.user) data.user = { username: loginForm.username }
+            if (u === 'admin') data.user.role = 'admin'
+            else if (u.startsWith('user')) data.user.role = 'user'
+            else data.user.role = 'guest'
+        }
+
         authStore.setToken(data.token)
         authStore.setUser(data.user)
         ElMessage.success('Login Successful')
-        // In a real app, route to dashboard based on role
-        // router.push('/dashboard') 
-        ElMessage.info('Redirecting to Dashboard...') 
+        
+        const role = data.user.role
+        if (role === 'guest') {
+            router.push('/guest')
+        } else {
+            router.push('/dashboard')
+        } 
       } catch (error) {
         console.error(error)
       } finally {
