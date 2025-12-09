@@ -62,6 +62,20 @@
         .issue-content { padding: 20px; }
         .ai-badge { background: linear-gradient(135deg, #ecf5ff 0%, #d9ecff 100%); color: #409EFF; padding: 6px 12px; border-radius: 6px; font-weight: 500; display: inline-flex; align-items: center; gap: 6px; }
 
+        /* Login Page */
+        .login-container { height: 100vh; display: flex; align-items: center; justify-content: center; background: #2d3a4b; background-image: radial-gradient(#409EFF 1px, transparent 1px); background-size: 30px 30px; }
+        .login-card { width: 400px; background: #fff; padding: 40px; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); text-align: center; }
+        .login-title { font-size: 24px; font-weight: bold; margin-bottom: 10px; color: #303133; }
+        .login-subtitle { font-size: 14px; color: #909399; margin-bottom: 30px; }
+        .login-form { text-align: left; }
+        .role-btn { width: 100%; margin-left: 0 !important; margin-bottom: 15px; height: 40px; font-size: 14px; }
+
+        /* Guest Page */
+        .guest-container { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; background: #f0f2f5; text-align: center; }
+        .guest-icon { font-size: 80px; color: #E6A23C; margin-bottom: 20px; }
+        .guest-title { font-size: 24px; font-weight: bold; color: #303133; margin-bottom: 10px; }
+        .guest-desc { font-size: 14px; color: #606266; margin-bottom: 30px; max-width: 400px; line-height: 1.6; }
+
         /* Animations */
         .fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; }
         .fade-enter-from, .fade-leave-to { opacity: 0; }
@@ -69,7 +83,45 @@
 </head>
 <body>
     <div id="app">
-        <div class="app-container">
+        <!-- Login Screen -->
+        <div v-if="!isLoggedIn" class="login-container">
+            <div class="login-card">
+                <div style="margin-bottom: 20px;">
+                    <div style="background: #409EFF; width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin: 0 auto;">
+                        <el-icon color="#fff" :size="30"><Data-Line /></el-icon>
+                    </div>
+                </div>
+                <div class="login-title">AI数据飞轮系统</div>
+                <div class="login-subtitle">请登录您的账号</div>
+                
+                <el-form class="login-form" @submit.prevent="handleLogin">
+                    <el-form-item>
+                        <el-input v-model="loginForm.username" placeholder="用户名 (admin / user / guest)" prefix-icon="User"></el-input>
+                    </el-form-item>
+                    <el-form-item>
+                        <el-input v-model="loginForm.password" type="password" placeholder="密码 (任意)" prefix-icon="Lock" show-password></el-input>
+                    </el-form-item>
+                    <el-button type="primary" style="width: 100%; height: 40px; font-size: 16px;" @click="handleLogin" :loading="loginLoading">登 录</el-button>
+                </el-form>
+
+                <div style="margin-top: 20px; font-size: 12px; color: #C0C4CC; text-align: left; line-height: 1.6;">
+                    <p style="margin: 0;"><strong>测试账号说明：</strong></p>
+                    <p style="margin: 0;">• <strong>admin</strong>: 进入管理员后台</p>
+                    <p style="margin: 0;">• <strong>user</strong>: 进入普通用户工作台</p>
+                    <p style="margin: 0;">• <strong>guest</strong> (或其他): 进入游客审核页</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Guest Page -->
+        <div v-else-if="currentRole === 'guest'" class="guest-container">
+             <el-icon class="guest-icon"><Lock /></el-icon>
+             <div class="guest-title">权限审核中</div>
+             <div class="guest-desc">您的账号已注册成功，但尚未分配业务权限。<br>请联系系统管理员为您开通权限后，重新登录。</div>
+             <el-button type="primary" @click="logout">返回登录页</el-button>
+        </div>
+
+        <div v-else class="app-container">
             <!-- Header -->
             <div class="header">
                 <div class="logo">
@@ -82,22 +134,10 @@
                     </el-tag>
                 </div>
                 <div class="actions" style="display: flex; align-items: center; gap: 20px;">
-                    <div style="display: flex; align-items: center; gap: 10px; background: #f0f2f5; padding: 4px 4px 4px 12px; border-radius: 20px;">
-                        <span style="font-size: 13px; color: #606266;">当前视角</span>
-                        <el-switch
-                            v-model="currentRole"
-                            active-value="admin"
-                            inactive-value="user"
-                            active-text="管理员"
-                            inactive-text="普通用户"
-                            @change="handleRoleChange"
-                            style="--el-switch-on-color: #F56C6C; --el-switch-off-color: #67C23A;"
-                        ></el-switch>
-                    </div>
-                    <el-divider direction="vertical"></el-divider>
                     <div style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
                         <el-avatar :size="32" :src="currentRole === 'admin' ? 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png' : 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png'"></el-avatar>
                         <span style="font-size: 14px; font-weight: 500;">{{ currentRole === 'admin' ? 'Admin' : 'Operator_01' }}</span>
+                        <el-icon @click="logout" style="margin-left: 10px; color: #909399;" title="退出登录"><Switch-Button /></el-icon>
                     </div>
                 </div>
             </div>
@@ -471,8 +511,13 @@
                     const Select = ElementPlusIconsVue.Select || 'span';
                     const EditPen = ElementPlusIconsVue.EditPen || 'span';
                     const Upload = ElementPlusIconsVue.Upload || 'span';
+                    const SwitchButton = ElementPlusIconsVue.SwitchButton || 'span';
 
+                    const isLoggedIn = ref(false);
                     const currentRole = ref('admin'); 
+                    const loginForm = reactive({ username: '', password: '' });
+                    const loginLoading = ref(false);
+
                     const activeMenu = ref('dashboard');
                     const trendPeriod = ref('7d');
                     const filterStatus = ref('all'); // all, pending, done
@@ -593,6 +638,43 @@
                     };
 
                     // --- Logic ---
+                    const handleLogin = () => {
+                        if (!loginForm.username) return ElMessage.warning('请输入用户名');
+                        
+                        loginLoading.value = true;
+                        
+                        // 模拟后端验证延迟
+                        setTimeout(() => {
+                            loginLoading.value = false;
+                            const user = loginForm.username.toLowerCase().trim();
+                            
+                            // 模拟后端权限判定逻辑
+                            if (user === 'admin') {
+                                currentRole.value = 'admin';
+                            } else if (user.startsWith('user')) {
+                                currentRole.value = 'user';
+                            } else {
+                                currentRole.value = 'guest';
+                            }
+
+                            isLoggedIn.value = true;
+                            
+                            if (currentRole.value !== 'guest') {
+                                handleRoleChange(); // Reset views
+                                ElMessage.success(`登录成功，欢迎回来 ${user}`);
+                            } else {
+                                ElMessage.warning('当前账号权限待审核');
+                            }
+                        }, 600);
+                    };
+
+                    const logout = () => {
+                        isLoggedIn.value = false;
+                        loginForm.username = '';
+                        loginForm.password = '';
+                        ElMessage.info('已退出登录');
+                    };
+
                     const handleRoleChange = () => {
                         activeMenu.value = 'dashboard';
                         currentTask.value = null; // Reset nested views
@@ -782,7 +864,9 @@
                         verifyIssue, openCorrection, submitCorrection, revertToVerified,
                         getStatusType, getStatusText, formatNumber,
                         // Icons (作为变量使用的)
-                        Select, EditPen, Upload
+                        Select, EditPen, Upload, SwitchButton,
+                        // Login
+                        isLoggedIn, loginForm, loginLoading, handleLogin, logout
                     };
                 }
             });
