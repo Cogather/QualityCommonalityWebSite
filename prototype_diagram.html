@@ -72,9 +72,10 @@
 
         /* Guest Page */
         .guest-container { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; background: #f0f2f5; text-align: center; }
-        .guest-icon { font-size: 80px; color: #E6A23C; margin-bottom: 20px; }
-        .guest-title { font-size: 24px; font-weight: bold; color: #303133; margin-bottom: 10px; }
-        .guest-desc { font-size: 14px; color: #606266; margin-bottom: 30px; max-width: 400px; line-height: 1.6; }
+        .guest-card { background: #fff; padding: 40px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); width: 400px; }
+        .guest-icon { font-size: 60px; color: #E6A23C; margin-bottom: 20px; }
+        .guest-title { font-size: 20px; font-weight: bold; color: #303133; margin-bottom: 10px; }
+        .guest-desc { font-size: 14px; color: #606266; margin-bottom: 30px; line-height: 1.6; }
 
         /* Animations */
         .fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; }
@@ -115,10 +116,38 @@
         
         <!-- Guest Page -->
         <div v-else-if="currentRole === 'guest'" class="guest-container">
-             <el-icon class="guest-icon"><Lock /></el-icon>
-             <div class="guest-title">权限审核中</div>
-             <div class="guest-desc">您的账号已注册成功，但尚未分配业务权限。<br>请联系系统管理员为您开通权限后，重新登录。</div>
-             <el-button type="primary" @click="logout">返回登录页</el-button>
+            <div class="guest-card">
+                 <div v-if="!hasApplied">
+                     <el-icon class="guest-icon"><Lock /></el-icon>
+                     <div class="guest-title">权限待开通</div>
+                     <div class="guest-desc">您的账号已注册成功，请选择一位管理员提交权限申请，审批通过后即可使用。</div>
+                     
+                     <el-form label-position="top">
+                         <el-form-item label="选择审批管理员">
+                             <el-select v-model="selectedAdmin" placeholder="请选择..." style="width: 100%">
+                                 <el-option label="Admin (系统管理员)" value="admin"></el-option>
+                                 <el-option label="Manager_Li (李经理)" value="li"></el-option>
+                                 <el-option label="Director_Wang (王总监)" value="wang"></el-option>
+                             </el-select>
+                         </el-form-item>
+                         <el-button type="primary" style="width: 100%" @click="submitApplication" :disabled="!selectedAdmin">提交申请</el-button>
+                     </el-form>
+                 </div>
+
+                 <div v-else>
+                     <el-icon class="guest-icon" style="color: #67C23A"><Checked /></el-icon>
+                     <div class="guest-title">申请已提交</div>
+                     <div class="guest-desc">
+                         已向管理员 <strong>{{ getAdminName(selectedAdmin) }}</strong> 发送请求。<br>
+                         请耐心等待审批，或联系管理员加速审核。
+                     </div>
+                     <el-button plain style="width: 100%" disabled>审核中...</el-button>
+                 </div>
+                 
+                 <div style="margin-top: 20px;">
+                    <el-button text @click="logout">退出登录</el-button>
+                 </div>
+            </div>
         </div>
 
         <div v-else class="app-container">
@@ -517,6 +546,10 @@
                     const currentRole = ref('admin'); 
                     const loginForm = reactive({ username: '', password: '' });
                     const loginLoading = ref(false);
+                    
+                    // Guest Logic
+                    const selectedAdmin = ref('');
+                    const hasApplied = ref(false);
 
                     const activeMenu = ref('dashboard');
                     const trendPeriod = ref('7d');
@@ -663,7 +696,9 @@
                                 handleRoleChange(); // Reset views
                                 ElMessage.success(`登录成功，欢迎回来 ${user}`);
                             } else {
-                                ElMessage.warning('当前账号权限待审核');
+                                // Reset guest state
+                                selectedAdmin.value = '';
+                                hasApplied.value = false;
                             }
                         }, 600);
                     };
@@ -710,6 +745,16 @@
                         
                         distributeDialogVisible.value = false;
                         ElMessage.success(currentDistributeBatch.value.status === 'assigned' ? '分发信息已更新' : '已分发');
+                    };
+
+                    const getAdminName = (val) => {
+                        const map = { 'admin': 'Admin (系统管理员)', 'li': 'Manager_Li (李经理)', 'wang': 'Director_Wang (王总监)' };
+                        return map[val] || val;
+                    };
+
+                    const submitApplication = () => {
+                        hasApplied.value = true;
+                        ElMessage.success('申请已发送');
                     };
 
                     const enterTask = (task) => {
@@ -866,7 +911,9 @@
                         // Icons (作为变量使用的)
                         Select, EditPen, Upload, SwitchButton,
                         // Login
-                        isLoggedIn, loginForm, loginLoading, handleLogin, logout
+                        isLoggedIn, loginForm, loginLoading, handleLogin, logout,
+                        // Guest
+                        selectedAdmin, hasApplied, submitApplication, getAdminName
                     };
                 }
             });
