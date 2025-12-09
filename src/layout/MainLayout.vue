@@ -38,6 +38,14 @@
                 <el-icon><Files /></el-icon>
                 <span>批次分发</span>
               </el-menu-item>
+              <el-menu-item index="admin-approvals">
+                <el-icon><Files /></el-icon>
+                <span>权限审批</span>
+              </el-menu-item>
+              <el-menu-item index="admin-users">
+                <el-icon><Files /></el-icon>
+                <span>用户管理</span>
+              </el-menu-item>
             </el-menu-item-group>
           </template>
 
@@ -95,6 +103,8 @@ watch(() => route.name, (newVal) => {
 const handleMenuSelect = (key) => {
   if (key === 'dashboard') router.push('/dashboard')
   else if (key === 'batch-manage') router.push('/admin/batch-manage')
+  else if (key === 'admin-approvals') router.push('/admin/approvals')
+  else if (key === 'admin-users') router.push('/admin/users')
   else if (key === 'my-tasks') router.push('/user/my-tasks')
 }
 

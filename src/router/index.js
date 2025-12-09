@@ -30,6 +30,16 @@ const routes = [
         component: () => import('../views/admin/BatchManage.vue')
       },
       {
+        path: 'admin/approvals',
+        name: 'AdminApprovals',
+        component: () => import('../views/admin/AdminApprovals.vue')
+      },
+      {
+        path: 'admin/users',
+        name: 'AdminUsers',
+        component: () => import('../views/admin/AdminUsers.vue')
+      },
+      {
         path: 'user/my-tasks',
         name: 'MyTasks',
         component: () => import('../views/user/MyTasks.vue')
