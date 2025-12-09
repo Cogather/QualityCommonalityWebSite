@@ -1,11 +1,11 @@
 <template>
-  <div>
+  <div v-loading="loading">
     <div style="margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between;">
       <div style="display: flex; gap: 10px; align-items: center;">
         <el-button @click="$router.push('/user/my-tasks')" link><el-icon><Back /></el-icon>&nbsp;返回任务列表</el-button>
         <el-divider direction="vertical"></el-divider>
         <span style="font-weight: bold;">{{ fileName }}</span>
-        <span style="color: #909399; font-size: 13px;">(Batch: {{ batchId }})</span>
+        <span style="color: #909399; font-size: 13px;">(Batch: {{ batchUid }})</span>
       </div>
       <div style="display: flex; gap: 10px;">
         <el-select v-model="filterCategory" placeholder="筛选聚类类别" clearable style="width: 150px">
@@ -47,18 +47,18 @@
         <!-- 1. 用户矫正类别 (User Correction Category) -->
         <el-table-column label="用户矫正类别" width="220">
           <template #default="{row}">
-            <div v-if="row.status === 'pending'" style="display: flex; gap: 8px;">
-              <el-button type="success" size="small" plain @click="verifyIssue(row)">准确</el-button>
+            <div v-if="row.status === 'PENDING'" style="display: flex; gap: 8px;">
+              <el-button type="success" size="small" plain @click="handleVerify(row)">准确</el-button>
               <el-button type="primary" size="small" plain @click="openCorrection(row)">纠错</el-button>
             </div>
-            <div v-else-if="row.status === 'verified'" style="display: flex; align-items: center; justify-content: space-between;">
+            <div v-else-if="row.status === 'VERIFIED'" style="display: flex; align-items: center; justify-content: space-between;">
               <span style="color: #67C23A; font-size: 12px; display: flex; flex-direction: column; gap: 2px;">
                 <div style="display: flex; align-items: center; gap: 4px;"><el-icon><Check /></el-icon> AI准确</div>
                 <span style="color: #999; font-size: 11px;">{{ row.aiCategoryLarge }} > {{ row.aiCategorySub }}</span>
               </span>
               <el-button type="primary" link size="small" @click="openCorrection(row)">修改</el-button>
             </div>
-            <div v-else-if="row.status === 'corrected'" style="display: flex; align-items: center; justify-content: space-between;">
+            <div v-else-if="row.status === 'CORRECTED'" style="display: flex; align-items: center; justify-content: space-between;">
               <span style="font-size: 12px; color: #E6A23C; display: flex; flex-direction: column; gap: 2px;">
                 <div style="display: flex; align-items: center; gap: 4px;"><el-icon><Edit /></el-icon> 人工修正</div>
                 <span style="font-weight: 500;">{{ row.humanCategoryLarge }} > {{ row.humanCategorySub }}</span>
@@ -117,7 +117,7 @@
           <el-button type="success" plain @click="revertToVerified">确认AI准确</el-button>
           <div>
             <el-button @click="correctionDialogVisible = false">取消</el-button>
-            <el-button type="primary" @click="submitCorrection">提交修正</el-button>
+            <el-button type="primary" @click="confirmCorrection" :loading="submitting">提交修正</el-button>
           </div>
         </div>
       </template>
@@ -126,14 +126,20 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { Back, ArrowRight, Check, Edit } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
+import { getTaskDetails, verifyIssue, correctIssue } from '../../api/task'
 
 const route = useRoute()
-const batchId = route.params.id
+const batchId = route.params.id // This is DB internal ID
 const fileName = route.query.fileName
+const batchUid = route.query.uid
+
+const loading = ref(false)
+const submitting = ref(false)
+const rawItems = ref([])
 
 const filterStatus = ref('all')
 const filterCategory = ref('')
@@ -143,37 +149,32 @@ const correctionDialogVisible = ref(false)
 const currentIssue = ref(null)
 const correctionForm = reactive({ categoryLarge: '', categorySub: '', reason: '' })
 
-// Mock items
-const rawItems = ref([
-    // Group A: Network
-    { id: 1001, title: 'Case #1001: Connection Lost', description: 'Log shows TCP handshake timeout.', aiCategoryLarge: '网络问题', aiCategorySub: '连接超时', spdt: '分组A', ipmt: 'XX', status: 'verified', resolution: 'Restarted Switch', issueType: 'Connectivity' },
-    { id: 1006, title: 'Case #1006: Timeout', description: 'Connection timed out after 3000ms', aiCategoryLarge: '网络问题', aiCategorySub: '连接超时', spdt: '分组A', ipmt: 'XX', status: 'pending', resolution: 'Increased Timeout', issueType: 'Latency' },
-    { id: 1007, title: 'Case #1007: Reset', description: 'Connection reset by peer', aiCategoryLarge: '网络问题', aiCategorySub: '配置错误', spdt: '分组A', ipmt: 'XX', status: 'pending', resolution: 'Check Firewall', issueType: 'Connectivity' },
-    
-    // Group B: Hardware
-    { id: 1002, title: 'Case #1002: Null Pointer', description: 'Java NullPointerException at Service.java:45', aiCategoryLarge: '硬件问题', aiCategorySub: '内存溢出', spdt: '分组B', ipmt: 'YY', status: 'corrected', humanCategoryLarge: '软件问题', humanCategorySub: '代码异常', reason: '代码问题', resolution: 'Patch Applied', issueType: 'NullRef' },
-    { id: 1003, title: 'Case #1003: Disk Full', description: 'No space left on device /dev/sda1', aiCategoryLarge: '硬件问题', aiCategorySub: '磁盘故障', spdt: '分组B', ipmt: 'YY', status: 'pending', resolution: 'Cleaned Logs', issueType: 'Storage' },
-    { id: 1008, title: 'Case #1008: Memory Error', description: 'OOM Killer triggered', aiCategoryLarge: '硬件问题', aiCategorySub: '内存溢出', spdt: '分组B', ipmt: 'YY', status: 'pending', resolution: 'Added RAM', issueType: 'Memory' },
+const fetchData = async () => {
+    loading.value = true
+    try {
+        const data = await getTaskDetails(batchId)
+        rawItems.value = data
+    } catch (e) {
+        console.error(e)
+    } finally {
+        loading.value = false
+    }
+}
 
-    // Group C: Auth
-    { id: 1004, title: 'Case #1004: Auth Failed', description: 'User admin login failed: invalid password', aiCategoryLarge: '安全问题', aiCategorySub: '认证失败', spdt: '分组C', ipmt: 'ZZ', status: 'pending', resolution: 'Reset Password', issueType: 'Auth' },
-    { id: 1009, title: 'Case #1009: 403 Forbidden', description: 'Access denied for resource /api/v1/secret', aiCategoryLarge: '安全问题', aiCategorySub: '权限拒绝', spdt: '分组C', ipmt: 'ZZ', status: 'pending', resolution: 'Grant Role', issueType: 'Auth' },
-    
-    // Group D: Unknown
-    { id: 1005, title: 'Case #1005: Unknown Signal', description: 'Received signal SIGTERM', aiCategoryLarge: '其他', aiCategorySub: '未知原因', spdt: '分组D', ipmt: 'WW', status: 'pending', resolution: 'Investigating', issueType: 'Signal' },
-    { id: 1010, title: 'Case #1010: Crash', description: 'Process died unexpectedly', aiCategoryLarge: '其他', aiCategorySub: '未知原因', spdt: '分组D', ipmt: 'WW', status: 'pending', resolution: 'Check Core Dump', issueType: 'Crash' }
-])
+onMounted(() => {
+    fetchData()
+})
 
 const filteredItems = computed(() => {
     return rawItems.value.filter(item => {
         if (filterCategory.value && item.aiCategoryLarge !== filterCategory.value) return false;
-        if (filterStatus.value === 'pending' && item.status !== 'pending') return false;
-        // if (filterStatus.value === 'done' && item.status === 'pending') return false; // "done" logic not strictly defined in prototype button but implicit
+        if (filterStatus.value === 'pending' && item.status !== 'PENDING') return false;
         return true;
     });
 });
 
 const getSummary = (large, sub) => {
+    // Basic mock summary logic, in real world might come from AI or backend
     if (large === '网络问题') return '网络连接超时，日志显示多次握手失败...';
     if (large === '硬件问题') return '检测到物理设备响应异常，可能是磁盘损坏或内存溢出...';
     if (large === '软件问题') return '空指针异常或未捕获的运行时错误，需开发介入...';
@@ -210,7 +211,6 @@ const tableData = computed(() => {
 });
 
 const objectSpanMethod = ({ row, column, rowIndex, columnIndex }) => {
-    // Merge first 5 columns: SPDT, IPMT, Category, Summary, Count
     if (columnIndex < 5) {
         if (row.rowSpan > 0) {
             return { rowspan: row.rowSpan, colspan: 1 };
@@ -220,25 +220,29 @@ const objectSpanMethod = ({ row, column, rowIndex, columnIndex }) => {
     }
 };
 
-const verifyIssue = (item) => {
-    // Find original item to update
-    const origin = rawItems.value.find(i => i.id === item.id);
-    if (origin) {
-        origin.status = 'verified';
-        origin.humanCategoryLarge = null;
-        origin.humanCategorySub = null;
-        origin.reason = null;
-        ElMessage.success('已标记为准确');
+const handleVerify = async (item) => {
+    try {
+        await verifyIssue(item.id)
+        
+        // Optimistic update
+        const origin = rawItems.value.find(i => i.id === item.id)
+        if (origin) {
+            origin.status = 'VERIFIED'
+            origin.humanCategoryLarge = null
+            origin.humanCategorySub = null
+            origin.reason = null
+        }
+        ElMessage.success('已标记为准确')
+    } catch (e) {
+        console.error(e)
     }
 };
 
 const openCorrection = (item) => {
-    currentIssue.value = item; // This is the proxy from tableData, need to map back to raw if editing props heavily, but for reading OK.
-    // However, tableData creates new objects. We should find the raw item.
     const origin = rawItems.value.find(i => i.id === item.id);
     currentIssue.value = origin;
 
-    if (origin.status === 'corrected') {
+    if (origin.status === 'CORRECTED') {
         correctionForm.categoryLarge = origin.humanCategoryLarge;
         correctionForm.categorySub = origin.humanCategorySub;
         correctionForm.reason = origin.reason;
@@ -250,29 +254,52 @@ const openCorrection = (item) => {
     correctionDialogVisible.value = true;
 };
 
-const submitCorrection = () => {
+const confirmCorrection = async () => {
     if(!correctionForm.categoryLarge || !correctionForm.categorySub) return ElMessage.warning('请完整填写分类信息');
     
-    currentIssue.value.status = 'corrected';
-    currentIssue.value.humanCategoryLarge = correctionForm.categoryLarge;
-    currentIssue.value.humanCategorySub = correctionForm.categorySub;
-    currentIssue.value.reason = correctionForm.reason;
-    
-    correctionDialogVisible.value = false;
-    ElMessage.success('已提交纠错');
+    submitting.value = true
+    try {
+        await correctIssue(currentIssue.value.id, {
+            categoryLarge: correctionForm.categoryLarge,
+            categorySub: correctionForm.categorySub,
+            reason: correctionForm.reason
+        })
+        
+        // Update local
+        currentIssue.value.status = 'CORRECTED';
+        currentIssue.value.humanCategoryLarge = correctionForm.categoryLarge;
+        currentIssue.value.humanCategorySub = correctionForm.categorySub;
+        currentIssue.value.reason = correctionForm.reason;
+        
+        correctionDialogVisible.value = false;
+        ElMessage.success('已提交纠错');
+    } catch (e) {
+        console.error(e)
+    } finally {
+        submitting.value = false
+    }
 };
 
-const revertToVerified = () => {
-    currentIssue.value.status = 'verified';
-    currentIssue.value.humanCategoryLarge = null;
-    currentIssue.value.humanCategorySub = null;
-    currentIssue.value.reason = null;
-    correctionDialogVisible.value = false;
-    ElMessage.success('已更正为准确');
+const revertToVerified = async () => {
+    submitting.value = true
+    try {
+        await verifyIssue(currentIssue.value.id)
+        
+        currentIssue.value.status = 'VERIFIED';
+        currentIssue.value.humanCategoryLarge = null;
+        currentIssue.value.humanCategorySub = null;
+        currentIssue.value.reason = null;
+        
+        correctionDialogVisible.value = false;
+        ElMessage.success('已更正为准确');
+    } catch (e) {
+        console.error(e)
+    } finally {
+        submitting.value = false
+    }
 };
 </script>
 
 <style scoped>
 .modern-card { background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); border: 1px solid #ebeef5; }
 </style>
-

@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div v-loading="loading">
     <h2 style="margin-bottom: 24px;">我的校验任务</h2>
     <div class="task-list">
       <div v-for="task in myTasks" :key="task.batchId" class="modern-card task-card" :class="{ completed: task.processedCount === task.totalCount }" style="cursor: pointer; padding: 20px;" @click="enterTask(task)">
@@ -7,7 +7,7 @@
           <el-tag :type="task.processedCount === task.totalCount ? 'success' : 'primary'" effect="dark" size="small">
             {{ task.processedCount === task.totalCount ? '已完成' : '进行中' }}
           </el-tag>
-          <span style="font-size: 12px; color: #999;">{{ task.uploadTime }}</span>
+          <span style="font-size: 12px; color: #999;">{{ new Date(task.uploadTime).toLocaleDateString() }}</span>
         </div>
         <h3 style="margin: 0 0 10px 0; font-size: 16px;">{{ task.fileName }}</h3>
         <p style="color: #666; font-size: 13px; margin: 0 0 20px 0;">批次号: {{ task.batchId }}</p>
@@ -23,31 +23,41 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { getMyTasks } from '../../api/task'
+import { useAuthStore } from '../../stores/auth'
 
 const router = useRouter()
+const authStore = useAuthStore()
+const user = computed(() => authStore.user)
+const myTasks = ref([])
+const loading = ref(false)
 
-// Mock data - In reality, this would be fetched from API or Store
-const myTasks = ref([
-    {
-        batchId: 'B-231002-002',
-        fileName: 'issue_logs_q3_02.json',
-        uploadTime: '2023-10-02',
-        totalCount: 12,
-        processedCount: 2
-    },
-    {
-        batchId: 'B-231001-001',
-        fileName: 'issue_logs_q3_01.json',
-        uploadTime: '2023-10-01',
-        totalCount: 100,
-        processedCount: 100
+const fetchData = async () => {
+    loading.value = true
+    try {
+        const userId = user.value?.id || 1 // Fallback or handle auth
+        const data = await getMyTasks(userId)
+        myTasks.value = data
+    } catch (e) {
+        console.error(e)
+    } finally {
+        loading.value = false
     }
-])
+}
+
+onMounted(() => {
+    fetchData()
+})
 
 const enterTask = (task) => {
-    router.push({ name: 'TaskDetail', params: { id: task.batchId }, query: { fileName: task.fileName } })
+    // Route using internal ID if possible, but keep UID in query if needed for display
+    router.push({ 
+        name: 'TaskDetail', 
+        params: { id: task.internalId }, 
+        query: { fileName: task.fileName, uid: task.batchId } 
+    })
 }
 </script>
 
@@ -58,4 +68,3 @@ const enterTask = (task) => {
 .task-card { border-left: 4px solid #409EFF; }
 .task-card.completed { border-left-color: #67C23A; }
 </style>
-

@@ -105,10 +105,8 @@ import { useAuthStore } from '../stores/auth'
 import { useRouter } from 'vue-router'
 import { Top, ArrowRight } from '@element-plus/icons-vue'
 import * as echarts from 'echarts'
-// Note: echarts-wordcloud might need to be imported if used, or handled if script tag was used in prototype.
-// Since npm install failed, I'll assume they are not available or I need to mock them/skip them.
-// For now, I'll add the import but comment it out if it fails, or handle graceful degradation.
-// import 'echarts-wordcloud'; 
+import { getAdminStats, getTopErrors, getCategoryDistribution } from '../api/dashboard'
+import { getMyTasks } from '../api/task'
 
 const authStore = useAuthStore()
 const router = useRouter()
@@ -121,54 +119,73 @@ const chartWordcloudRef = ref(null)
 let chartInstanceTopError = null
 let chartInstanceWordcloud = null
 
-// Mock Data
+// Data
 const stats = reactive({
-  totalPredictions: 12580,
-  pendingBatches: 2,
-  accuracy: 86.5,
-  correctionProgress: 68
+  totalPredictions: 0,
+  pendingBatches: 0,
+  accuracy: 0,
+  correctionProgress: 0
 })
 
-const myTasks = ref([
-    {
-        batchId: 'B-231002-002',
-        fileName: 'issue_logs_q3_02.json',
-        uploadTime: '2023-10-02',
-        totalCount: 12,
-        processedCount: 2
-    },
-    {
-        batchId: 'B-231001-001',
-        fileName: 'issue_logs_q3_01.json',
-        uploadTime: '2023-10-01',
-        totalCount: 100,
-        processedCount: 100
-    }
-])
+const myTasks = ref([])
 
-const formatNumber = (num) => num.toLocaleString()
+const formatNumber = (num) => (num || 0).toLocaleString()
 
 const enterTask = (task) => {
-  // Push to task detail view with batchId
-  router.push({ name: 'TaskDetail', params: { id: task.batchId }, query: { fileName: task.fileName } })
+  // Push internal ID if available, here we use batchId (UID) for route params but need to consider how TaskDetail uses it
+  // Backend TaskDetail endpoint expects internal ID if we followed my implementation notes, OR we update TaskDetail logic
+  // The TaskService.getMyTasks returns 'batchId' as UID and 'internalId' as DB ID.
+  // Ideally we route with DB ID or handle UID lookup.
+  // Let's use internalId for route param to be safe if backend expects ID.
+  // But wait, my TaskController.getTaskDetails expects batchId (DB ID).
+  router.push({ 
+    name: 'TaskDetail', 
+    params: { id: task.internalId }, 
+    query: { fileName: task.fileName, uid: task.batchId } 
+  })
 }
 
-const initAdminCharts = () => {
+const loadAdminData = async () => {
+  try {
+    const statsData = await getAdminStats()
+    Object.assign(stats, statsData)
+
+    const topErrors = await getTopErrors()
+    const dist = await getCategoryDistribution()
+    
+    initCharts(topErrors, dist)
+  } catch (e) {
+    console.error(e)
+  }
+}
+
+const loadUserData = async () => {
+    try {
+        // Pass current user ID. If not available in store, default to 1 or handle login requirement
+        const userId = user.value?.id || 2 // Default to 2 (User) for testing if not set
+        const tasks = await getMyTasks(userId)
+        myTasks.value = tasks
+    } catch (e) {
+        console.error(e)
+    }
+}
+
+const initCharts = (topErrors, categoryDist) => {
     if (chartTopErrorRef.value) {
+        const categories = topErrors.map(i => i.name)
+        const values = topErrors.map(i => i.value)
+        
         chartInstanceTopError = echarts.init(chartTopErrorRef.value);
         chartInstanceTopError.setOption({
             tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
             grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
             xAxis: { type: 'value' },
-            yAxis: { type: 'category', data: ['网络配置', '软件Bug', '硬件故障', '数据异常', '权限'].reverse() },
-            series: [{ type: 'bar', data: [320, 250, 180, 120, 80].reverse(), itemStyle: { color: '#F56C6C', borderRadius: [0,4,4,0] }, barWidth: '60%' }]
+            yAxis: { type: 'category', data: categories.reverse() },
+            series: [{ type: 'bar', data: values.reverse(), itemStyle: { color: '#F56C6C', borderRadius: [0,4,4,0] }, barWidth: '60%' }]
         });
     }
 
     if (chartWordcloudRef.value) {
-        // Fallback to pie chart if wordcloud is not available or just use pie as in prototype backup?
-        // Prototype used echarts-wordcloud but had a pie chart config as fallback in code (Wait, the prototype code shows a PIE chart config for 'chart-wordcloud' element ID! line 655 type: 'pie').
-        // So I will use Pie chart as per the prototype code provided.
         chartInstanceWordcloud = echarts.init(chartWordcloudRef.value);
         chartInstanceWordcloud.setOption({
                 tooltip: { trigger: 'item' },
@@ -177,11 +194,7 @@ const initAdminCharts = () => {
                     type: 'pie', radius: ['40%', '70%'], avoidLabelOverlap: false,
                     itemStyle: { borderRadius: 8, borderColor: '#fff', borderWidth: 2 },
                     label: { show: false },
-                    data: [
-                        { value: 1048, name: '网络' }, { value: 735, name: '数据库' },
-                        { value: 580, name: '权限' }, { value: 484, name: 'IO错误' },
-                        { value: 300, name: '其他' }
-                    ]
+                    data: categoryDist
                 }]
         });
     }
@@ -190,7 +203,9 @@ const initAdminCharts = () => {
 onMounted(() => {
     nextTick(() => {
         if (currentRole.value === 'admin') {
-            initAdminCharts();
+            loadAdminData();
+        } else if (currentRole.value === 'user') {
+            loadUserData();
         }
     });
     window.addEventListener('resize', handleResize);
@@ -223,4 +238,3 @@ const handleResize = () => {
 .trend-up { color: #67C23A; }
 .trend-down { color: #F56C6C; }
 </style>
-
