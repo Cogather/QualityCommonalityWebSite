@@ -8,8 +8,11 @@
         <span style="color: #909399; font-size: 13px;">(Batch: {{ batchUid }})</span>
       </div>
       <div style="display: flex; gap: 10px;">
-        <el-select v-model="filterCategory" placeholder="筛选聚类类别" clearable style="width: 150px">
-          <el-option v-for="cat in categories" :key="cat" :label="cat" :value="cat"></el-option>
+        <el-select v-model="filterCategoryLarge" placeholder="筛选大类" clearable style="width: 150px">
+          <el-option v-for="cat in categoryLargeList" :key="cat" :label="cat" :value="cat"></el-option>
+        </el-select>
+        <el-select v-model="filterCategorySub" placeholder="筛选子类" clearable style="width: 150px">
+          <el-option v-for="cat in categorySubList" :key="cat" :label="cat" :value="cat"></el-option>
         </el-select>
         <el-button-group>
           <el-button :type="filterStatus==='all'?'primary':''" plain @click="filterStatus='all'">全部</el-button>
@@ -18,78 +21,69 @@
       </div>
     </div>
     
-    <div class="modern-card">
-      <el-table :data="tableData" style="width: 100%" :span-method="objectSpanMethod" border>
-        <!-- Group Columns (Merged) -->
-        <el-table-column prop="spdt" label="SPDT" width="100" align="center"></el-table-column>
-        <el-table-column prop="ipmt" label="IPMT" width="100" align="center"></el-table-column>
-        <el-table-column label="聚类类别" width="140" align="center">
-          <template #default="{row}">
-            <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
-              <el-tag type="info" effect="dark" size="small">{{ row.aiCategoryLarge }}</el-tag>
-              <el-icon style="transform: rotate(90deg); color: #909399; font-size: 12px;"><ArrowRight /></el-icon>
-              <el-tag type="info" effect="plain" size="small">{{ row.aiCategorySub }}</el-tag>
+    <!-- 按聚类组展示 -->
+    <div v-for="cluster in filteredClusters" :key="cluster.clusterId" class="cluster-group" style="margin-bottom: 24px;">
+      <div class="modern-card">
+        <!-- 聚类组头部 -->
+        <div style="padding: 16px; background: #f5f7fa; border-radius: 8px 8px 0 0; border-bottom: 2px solid #e4e7ed; display: flex; align-items: center; gap: 16px;">
+          <div style="display: flex; flex-direction: column; gap: 4px; flex: 1;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <el-tag type="info" effect="dark" size="small">{{ cluster.categoryLarge }}</el-tag>
+              <el-icon style="color: #909399;"><ArrowRight /></el-icon>
+              <el-tag type="info" effect="plain" size="small">{{ cluster.categorySub }}</el-tag>
             </div>
-          </template>
-        </el-table-column>
-        <el-table-column prop="summary" label="聚类总结" width="200" show-overflow-tooltip>
-          <template #default="{row}">
-            <span style="color: #666; font-size: 12px;">{{ row.summary }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column label="问题数" width="80" align="center">
-          <template #default="{row}">
-            <el-badge :value="row.groupSize" type="info" />
-          </template>
-        </el-table-column>
-
-        <!-- Requested Column Order -->
-        <!-- 1. 用户矫正类别 (User Correction Category) -->
-        <el-table-column label="用户矫正类别" width="220">
-          <template #default="{row}">
-            <div v-if="row.status === 'PENDING'" style="display: flex; gap: 8px;">
-              <el-button type="success" size="small" plain @click="handleVerify(row)">准确</el-button>
-              <el-button type="primary" size="small" plain @click="openCorrection(row)">纠错</el-button>
-            </div>
-            <div v-else-if="row.status === 'VERIFIED'" style="display: flex; align-items: center; justify-content: space-between;">
-              <span style="color: #67C23A; font-size: 12px; display: flex; flex-direction: column; gap: 2px;">
-                <div style="display: flex; align-items: center; gap: 4px;"><el-icon><Check /></el-icon> AI准确</div>
-                <span style="color: #999; font-size: 11px;">{{ row.aiCategoryLarge }} > {{ row.aiCategorySub }}</span>
-              </span>
-              <el-button type="primary" link size="small" @click="openCorrection(row)">修改</el-button>
-            </div>
-            <div v-else-if="row.status === 'CORRECTED'" style="display: flex; align-items: center; justify-content: space-between;">
-              <span style="font-size: 12px; color: #E6A23C; display: flex; flex-direction: column; gap: 2px;">
-                <div style="display: flex; align-items: center; gap: 4px;"><el-icon><Edit /></el-icon> 人工修正</div>
-                <span style="font-weight: 500;">{{ row.humanCategoryLarge }} > {{ row.humanCategorySub }}</span>
-              </span>
-              <el-button type="primary" link size="small" @click="openCorrection(row)">修改</el-button>
-            </div>
-          </template>
-        </el-table-column>
-
-        <!-- 2. 矫正说明 (Correction Note) -->
-        <el-table-column label="矫正说明" width="150" show-overflow-tooltip>
-          <template #default="{row}">
-            {{ row.reason || '-' }}
-          </template>
-        </el-table-column>
-
-        <!-- 3. PROD_EN_NAME -->
-        <el-table-column prop="title" label="PROD_EN_NAME" min-width="180" show-overflow-tooltip></el-table-column>
+            <span style="color: #666; font-size: 12px; margin-top: 4px;">{{ cluster.summary }}</span>
+          </div>
+          <el-badge :value="cluster.problemCount" type="info" />
+        </div>
         
-        <!-- 4. RESOLUTION_DETAIL -->
-        <el-table-column prop="resolution" label="RESOLUTION_DETAIL" min-width="150" show-overflow-tooltip></el-table-column>
+        <!-- 问题列表 -->
+        <el-table :data="cluster.issues" style="width: 100%" border>
 
-        <!-- 5. ISSUE_DETAILS -->
-        <el-table-column prop="description" label="ISSUE_DETAILS" min-width="250" show-overflow-tooltip></el-table-column>
-        
-        <!-- 6. ISSUE_NO -->
-        <el-table-column prop="id" label="ISSUE_NO" width="100"></el-table-column>
-        
-        <!-- 7. ISSUE_TYPE -->
-        <el-table-column prop="issueType" label="ISSUE_TYPE" width="120"></el-table-column>
-      </el-table>
+          <!-- 1. 用户矫正类别 (User Correction Category) -->
+          <el-table-column label="用户矫正类别" width="220">
+            <template #default="{row}">
+              <div v-if="row.status === 'PENDING'" style="display: flex; gap: 8px;">
+                <el-button type="success" size="small" plain @click="handleVerify(row)">准确</el-button>
+                <el-button type="primary" size="small" plain @click="openCorrection(row, cluster)">纠错</el-button>
+              </div>
+              <div v-else-if="row.status === 'VERIFIED'" style="display: flex; align-items: center; justify-content: space-between;">
+                <span style="color: #67C23A; font-size: 12px; display: flex; flex-direction: column; gap: 2px;">
+                  <div style="display: flex; align-items: center; gap: 4px;"><el-icon><Check /></el-icon> AI准确</div>
+                  <span style="color: #999; font-size: 11px;">{{ row.humanCategoryLarge }} > {{ row.humanCategorySub }}</span>
+                </span>
+                <el-button type="primary" link size="small" @click="openCorrection(row, cluster)">修改</el-button>
+              </div>
+              <div v-else-if="row.status === 'CORRECTED'" style="display: flex; align-items: center; justify-content: space-between;">
+                <span style="font-size: 12px; color: #E6A23C; display: flex; flex-direction: column; gap: 2px;">
+                  <div style="display: flex; align-items: center; gap: 4px;"><el-icon><Edit /></el-icon> 人工修正</div>
+                  <span style="font-weight: 500;">{{ row.humanCategoryLarge }} > {{ row.humanCategorySub }}</span>
+                </span>
+                <el-button type="primary" link size="small" @click="openCorrection(row, cluster)">修改</el-button>
+              </div>
+            </template>
+          </el-table-column>
+
+          <!-- 2. 矫正说明 (Correction Note) -->
+          <el-table-column label="矫正说明" width="150" show-overflow-tooltip>
+            <template #default="{row}">
+              {{ row.reason || '-' }}
+            </template>
+          </el-table-column>
+
+          <!-- 3. PROD_EN_NAME -->
+          <el-table-column prop="prodEnName" label="PROD_EN_NAME" min-width="180" show-overflow-tooltip></el-table-column>
+          
+          <!-- 4. RESOLUTION_DETAIL -->
+          <el-table-column prop="resolutionDetail" label="RESOLUTION_DETAIL" min-width="150" show-overflow-tooltip></el-table-column>
+
+          <!-- 5. ISSUE_DETAILS -->
+          <el-table-column prop="issueDetails" label="ISSUE_DETAILS" min-width="250" show-overflow-tooltip></el-table-column>
+          
+          <!-- 6. ISSUE_NO -->
+          <el-table-column prop="issueNo" label="ISSUE_NO" width="100"></el-table-column>
+        </el-table>
+      </div>
     </div>
 
     <!-- Correction Dialog -->
@@ -97,9 +91,9 @@
       <el-form :model="correctionForm" label-position="top">
         <el-form-item label="AI 预测结果">
           <div style="display: flex; align-items: center; gap: 8px; padding: 10px; background: #f5f7fa; border-radius: 4px;">
-            <el-tag type="info" effect="dark">{{ currentIssue?.aiCategoryLarge }}</el-tag>
+            <el-tag type="info" effect="dark">{{ currentCluster?.categoryLarge }}</el-tag>
             <el-icon><ArrowRight /></el-icon>
-            <el-tag type="info" effect="plain">{{ currentIssue?.aiCategorySub }}</el-tag>
+            <el-tag type="info" effect="plain">{{ currentCluster?.categorySub }}</el-tag>
           </div>
         </el-form-item>
         <el-form-item label="真实类别 (您的判断)">
@@ -126,36 +120,85 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { Back, ArrowRight, Check, Edit } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { getTaskDetails, verifyIssue, correctIssue } from '../../api/task'
+import { useAuthStore } from '../../stores/auth'
 
 const route = useRoute()
 const batchId = route.params.id // This is DB internal ID
 const fileName = route.query.fileName
 const batchUid = route.query.uid
 
+const authStore = useAuthStore()
+const userId = computed(() => authStore.user?.id || 1) // 获取当前用户ID
+
 const loading = ref(false)
 const submitting = ref(false)
-const rawItems = ref([])
+const clusters = ref([]) // 存储聚类组数据
 
 const filterStatus = ref('all')
-const filterCategory = ref('')
-const categories = ['网络问题', '硬件问题', '软件问题', '安全问题', '其他']
+const filterCategoryLarge = ref('') // 筛选大类（独立筛选）
+const filterCategorySub = ref('') // 筛选子类（独立筛选）
+const categoryLargeList = ref([]) // 所有可用的大类列表
+const categorySubList = ref([]) // 所有可用的子类列表（独立于大类）
 
 const correctionDialogVisible = ref(false)
 const currentIssue = ref(null)
+const currentCluster = ref(null)
 const correctionForm = reactive({ categoryLarge: '', categorySub: '', reason: '' })
+
+// 获取问题的实际类别（直接使用humanCategory字段，所有状态都使用此字段）
+const getIssueActualCategory = (issue) => {
+    // 直接使用humanCategoryLarge和humanCategorySub字段
+    // VERIFIED/PENDING状态：存储AI预测的类别
+    // CORRECTED状态：存储人工修正的类别
+    return {
+        categoryLarge: issue.humanCategoryLarge,
+        categorySub: issue.humanCategorySub
+    }
+}
+
+// 提取所有类别用于筛选（包括AI预测和用户修正的类别）
+const extractCategories = () => {
+    const categoryLargeSet = new Set()
+    const categorySubSet = new Set() // 独立的子类集合
+    
+    clusters.value.forEach(cluster => {
+        // 遍历该聚类组下的所有问题
+        cluster.issues.forEach(issue => {
+            const actualCategory = getIssueActualCategory(issue)
+            const large = actualCategory.categoryLarge
+            const sub = actualCategory.categorySub
+            
+            // 收集大类
+            if (large) {
+                categoryLargeSet.add(large)
+            }
+            
+            // 收集子类（独立于大类）
+            if (sub) {
+                categorySubSet.add(sub)
+            }
+        })
+    })
+    
+    // 转换为数组
+    categoryLargeList.value = Array.from(categoryLargeSet).sort()
+    categorySubList.value = Array.from(categorySubSet).sort()
+}
 
 const fetchData = async () => {
     loading.value = true
     try {
         const data = await getTaskDetails(batchId)
-        rawItems.value = data
+        clusters.value = data || []
+        extractCategories()
     } catch (e) {
         console.error(e)
+        ElMessage.error('加载任务详情失败')
     } finally {
         loading.value = false
     }
@@ -165,97 +208,115 @@ onMounted(() => {
     fetchData()
 })
 
-const filteredItems = computed(() => {
-    return rawItems.value.filter(item => {
-        if (filterCategory.value && item.aiCategoryLarge !== filterCategory.value) return false;
-        if (filterStatus.value === 'pending' && item.status !== 'PENDING') return false;
-        return true;
-    });
-});
-
-const getSummary = (large, sub) => {
-    // Basic mock summary logic, in real world might come from AI or backend
-    if (large === '网络问题') return '网络连接超时，日志显示多次握手失败...';
-    if (large === '硬件问题') return '检测到物理设备响应异常，可能是磁盘损坏或内存溢出...';
-    if (large === '软件问题') return '空指针异常或未捕获的运行时错误，需开发介入...';
-    if (large === '安全问题') return '用户尝试访问受限资源，认证失败...';
-    return '异常信号终止，无详细堆栈信息...';
-};
-
-const tableData = computed(() => {
-    const groups = {};
-    filteredItems.value.forEach(item => {
-        const key = `${item.spdt}|${item.ipmt}|${item.aiCategoryLarge}|${item.aiCategorySub}`;
-        if (!groups[key]) groups[key] = [];
-        groups[key].push(item);
-    });
-
-    const result = [];
-    Object.keys(groups).forEach(key => {
-        const items = groups[key];
-        items.forEach((item, index) => {
-            const row = { 
-                ...item,
-                summary: getSummary(item.aiCategoryLarge, item.aiCategorySub),
-                groupSize: items.length
-            };
-            if (index === 0) {
-                row.rowSpan = items.length;
-            } else {
-                row.rowSpan = 0;
+// 过滤后的聚类组
+const filteredClusters = computed(() => {
+    return clusters.value.filter(cluster => {
+        // 检查该聚类组是否有问题匹配筛选条件
+        const hasMatchingIssue = cluster.issues.some(issue => {
+            // 获取问题的实际类别（直接使用后端返回的字段）
+            const actualCategory = getIssueActualCategory(issue)
+            
+            // 按大类筛选（独立筛选）
+            if (filterCategoryLarge.value && actualCategory.categoryLarge !== filterCategoryLarge.value) {
+                return false
             }
-            result.push(row);
-        });
-    });
-    return result;
-});
-
-const objectSpanMethod = ({ row, column, rowIndex, columnIndex }) => {
-    if (columnIndex < 5) {
-        if (row.rowSpan > 0) {
-            return { rowspan: row.rowSpan, colspan: 1 };
-        } else {
-            return { rowspan: 0, colspan: 0 };
-        }
-    }
-};
-
-const handleVerify = async (item) => {
-    try {
-        await verifyIssue(item.id)
+            
+            // 按子类筛选（独立筛选）
+            if (filterCategorySub.value && actualCategory.categorySub !== filterCategorySub.value) {
+                return false
+            }
+            
+            // 按状态筛选
+            if (filterStatus.value === 'pending' && issue.status !== 'PENDING') {
+                return false
+            }
+            
+            return true
+        })
         
-        // Optimistic update
-        const origin = rawItems.value.find(i => i.id === item.id)
-        if (origin) {
-            origin.status = 'VERIFIED'
-            origin.humanCategoryLarge = null
-            origin.humanCategorySub = null
-            origin.reason = null
+        // 如果该聚类组没有任何匹配的问题，则不显示该聚类组
+        if (!hasMatchingIssue) {
+            return false
         }
+        
+        return true
+    }).map(cluster => {
+        // 对每个聚类组，只显示匹配筛选条件的问题
+        const filteredIssues = cluster.issues.filter(issue => {
+            const actualCategory = getIssueActualCategory(issue)
+            
+            // 按大类筛选（独立筛选）
+            if (filterCategoryLarge.value && actualCategory.categoryLarge !== filterCategoryLarge.value) {
+                return false
+            }
+            
+            // 按子类筛选（独立筛选）
+            if (filterCategorySub.value && actualCategory.categorySub !== filterCategorySub.value) {
+                return false
+            }
+            
+            // 按状态筛选
+            if (filterStatus.value === 'pending' && issue.status !== 'PENDING') {
+                return false
+            }
+            
+            return true
+        })
+        
+        // 返回过滤后的聚类组（包含过滤后的问题列表）
+        return {
+            ...cluster,
+            issues: filteredIssues
+        }
+    })
+})
+
+const handleVerify = async (issue) => {
+    try {
+        await verifyIssue(issue.id, userId.value)
+        
+        // 更新本地数据
+        const cluster = clusters.value.find(c => c.issues.some(i => i.id === issue.id))
+        if (cluster) {
+            const issueInCluster = cluster.issues.find(i => i.id === issue.id)
+            if (issueInCluster) {
+                issueInCluster.status = 'VERIFIED'
+                // VERIFIED状态：humanCategory字段存储AI预测的类别（后端已更新）
+                // 需要从cluster获取AI预测的类别更新到本地
+                issueInCluster.humanCategoryLarge = cluster.categoryLarge
+                issueInCluster.humanCategorySub = cluster.categorySub
+                issueInCluster.reason = null
+            }
+        }
+        // 重新提取类别列表（因为类别可能发生变化）
+        extractCategories()
         ElMessage.success('已标记为准确')
     } catch (e) {
         console.error(e)
+        ElMessage.error('操作失败')
     }
-};
+}
 
-const openCorrection = (item) => {
-    const origin = rawItems.value.find(i => i.id === item.id);
-    currentIssue.value = origin;
+const openCorrection = (issue, cluster) => {
+    currentIssue.value = issue
+    currentCluster.value = cluster
 
-    if (origin.status === 'CORRECTED') {
-        correctionForm.categoryLarge = origin.humanCategoryLarge;
-        correctionForm.categorySub = origin.humanCategorySub;
-        correctionForm.reason = origin.reason;
+    if (issue.status === 'CORRECTED') {
+        correctionForm.categoryLarge = issue.humanCategoryLarge || ''
+        correctionForm.categorySub = issue.humanCategorySub || ''
+        correctionForm.reason = issue.reason || ''
     } else {
-        correctionForm.categoryLarge = origin.aiCategoryLarge;
-        correctionForm.categorySub = origin.aiCategorySub;
-        correctionForm.reason = '';
+        correctionForm.categoryLarge = cluster.categoryLarge
+        correctionForm.categorySub = cluster.categorySub
+        correctionForm.reason = ''
     }
-    correctionDialogVisible.value = true;
-};
+    correctionDialogVisible.value = true
+}
 
 const confirmCorrection = async () => {
-    if(!correctionForm.categoryLarge || !correctionForm.categorySub) return ElMessage.warning('请完整填写分类信息');
+    if(!correctionForm.categoryLarge || !correctionForm.categorySub) {
+        return ElMessage.warning('请完整填写分类信息')
+    }
     
     submitting.value = true
     try {
@@ -263,43 +324,87 @@ const confirmCorrection = async () => {
             categoryLarge: correctionForm.categoryLarge,
             categorySub: correctionForm.categorySub,
             reason: correctionForm.reason
-        })
+        }, userId.value)
         
-        // Update local
-        currentIssue.value.status = 'CORRECTED';
-        currentIssue.value.humanCategoryLarge = correctionForm.categoryLarge;
-        currentIssue.value.humanCategorySub = correctionForm.categorySub;
-        currentIssue.value.reason = correctionForm.reason;
+        // 更新本地数据
+        const cluster = clusters.value.find(c => c.issues.some(i => i.id === currentIssue.value.id))
+        if (cluster) {
+            const issue = cluster.issues.find(i => i.id === currentIssue.value.id)
+            if (issue) {
+                issue.status = 'CORRECTED'
+                issue.humanCategoryLarge = correctionForm.categoryLarge
+                issue.humanCategorySub = correctionForm.categorySub
+                issue.reason = correctionForm.reason
+            }
+        }
         
-        correctionDialogVisible.value = false;
-        ElMessage.success('已提交纠错');
+        // 重新提取类别列表（因为新增了用户修正的类别）
+        extractCategories()
+        
+        correctionDialogVisible.value = false
+        ElMessage.success('已提交纠错')
     } catch (e) {
         console.error(e)
+        ElMessage.error('提交失败')
     } finally {
         submitting.value = false
     }
-};
+}
 
 const revertToVerified = async () => {
     submitting.value = true
     try {
-        await verifyIssue(currentIssue.value.id)
+        await verifyIssue(currentIssue.value.id, userId.value)
         
-        currentIssue.value.status = 'VERIFIED';
-        currentIssue.value.humanCategoryLarge = null;
-        currentIssue.value.humanCategorySub = null;
-        currentIssue.value.reason = null;
+        // 更新本地数据
+        const cluster = clusters.value.find(c => c.issues.some(i => i.id === currentIssue.value.id))
+        if (cluster) {
+            const issue = cluster.issues.find(i => i.id === currentIssue.value.id)
+            if (issue) {
+                issue.status = 'VERIFIED'
+                // VERIFIED状态：humanCategory字段存储AI预测的类别（后端已更新）
+                // 需要从cluster获取AI预测的类别更新到本地
+                issue.humanCategoryLarge = cluster.categoryLarge
+                issue.humanCategorySub = cluster.categorySub
+                issue.reason = null
+            }
+        }
         
-        correctionDialogVisible.value = false;
-        ElMessage.success('已更正为准确');
+        // 重新提取类别列表（因为类别可能发生变化）
+        extractCategories()
+        
+        correctionDialogVisible.value = false
+        ElMessage.success('已更正为准确')
     } catch (e) {
         console.error(e)
+        ElMessage.error('操作失败')
     } finally {
         submitting.value = false
     }
-};
+}
 </script>
 
 <style scoped>
-.modern-card { background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); border: 1px solid #ebeef5; }
+.modern-card { 
+  background: #fff; 
+  border-radius: 12px; 
+  box-shadow: 0 4px 12px rgba(0,0,0,0.03); 
+  border: 1px solid #ebeef5; 
+  overflow: hidden;
+}
+
+.cluster-group {
+  animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
 </style>

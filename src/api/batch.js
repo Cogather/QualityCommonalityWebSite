@@ -7,11 +7,16 @@ export function getBatchList() {
   })
 }
 
-export function uploadBatch(data) {
+export function uploadBatch(file) {
+  const formData = new FormData()
+  formData.append('file', file)
   return request({
     url: '/api/batches/upload',
     method: 'post',
-    data // { fileName: '...' }
+    data: formData,
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
   })
 }
 
@@ -27,6 +32,13 @@ export function getAssignableUsers() {
   return request({
     url: '/api/batches/users',
     method: 'get'
+  })
+}
+
+export function deleteBatch(batchId) {
+  return request({
+    url: `/api/batches/${batchId}`,
+    method: 'delete'
   })
 }
 

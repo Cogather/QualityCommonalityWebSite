@@ -39,7 +39,7 @@
             <el-button v-if="scope.row.status === 'PENDING'" type="primary" link @click="openDistributeDialog(scope.row)">分发</el-button>
             <el-button v-else-if="scope.row.status === 'ASSIGNED'" type="warning" link @click="openDistributeDialog(scope.row)">修改分发</el-button>
             <el-button v-else type="info" link disabled>已完成</el-button>
-            <el-button type="danger" link>删除</el-button>
+            <el-button type="danger" link @click="handleDelete(scope.row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -72,7 +72,8 @@
 import { ref, onMounted } from 'vue'
 import { Upload } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import { getBatchList, uploadBatch, distributeBatch, getAssignableUsers } from '../../api/batch'
+import { getBatchList, uploadBatch, distributeBatch, getAssignableUsers, deleteBatch } from '../../api/batch'
+import { ElMessageBox } from 'element-plus'
 
 const batches = ref([])
 const loading = ref(false)
@@ -112,9 +113,15 @@ onMounted(() => {
 })
 
 const handleFileChange = async (file) => {
+    // 验证文件类型
+    if (!file.raw.name.endsWith('.json')) {
+        ElMessage.error('只支持JSON文件')
+        return
+    }
+    
     try {
-        await uploadBatch({ fileName: file.name })
-        ElMessage.success(`文件 ${file.name} 已上传成功`)
+        const result = await uploadBatch(file.raw)
+        ElMessage.success(`文件 ${file.raw.name} 上传成功！批次号：${result.batch_uid}，共 ${result.total_count} 个问题`)
         fetchData()
     } catch (e) {
         // handled by interceptor
@@ -144,6 +151,35 @@ const confirmDistribute = async () => {
         // err
     } finally {
         distributeLoading.value = false
+    }
+}
+
+const handleDelete = async (row) => {
+    try {
+        await ElMessageBox.confirm(
+            `确定要删除批次 "${row.fileName}" (${row.batchUid}) 吗？此操作将同时删除该批次下的所有聚类组和问题数据，且无法恢复！`,
+            '确认删除',
+            {
+                confirmButtonText: '确定删除',
+                cancelButtonText: '取消',
+                type: 'warning',
+                dangerouslyUseHTMLString: false
+            }
+        )
+        
+        // 用户确认删除
+        loading.value = true
+        try {
+            await deleteBatch(row.id)
+            ElMessage.success('删除成功')
+            fetchData()
+        } catch(e) {
+            // error handled by interceptor
+        } finally {
+            loading.value = false
+        }
+    } catch(e) {
+        // 用户取消删除，不做任何操作
     }
 }
 </script>

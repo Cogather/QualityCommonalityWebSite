@@ -15,17 +15,19 @@ export function getTaskDetails(batchId) {
   })
 }
 
-export function verifyIssue(itemId) {
+export function verifyIssue(itemId, userId) {
   return request({
     url: `/api/tasks/items/${itemId}/verify`,
-    method: 'post'
+    method: 'post',
+    params: { userId }
   })
 }
 
-export function correctIssue(itemId, data) {
+export function correctIssue(itemId, data, userId) {
   return request({
     url: `/api/tasks/items/${itemId}/correct`,
     method: 'post',
+    params: { userId },
     data // { categoryLarge, categorySub, reason }
   })
 }
