@@ -21,70 +21,132 @@
       </div>
     </div>
     
-    <!-- 按聚类组展示 -->
-    <div v-for="cluster in filteredClusters" :key="cluster.clusterId" class="cluster-group" style="margin-bottom: 24px;">
-      <div class="modern-card">
-        <!-- 聚类组头部 -->
-        <div style="padding: 16px; background: #f5f7fa; border-radius: 8px 8px 0 0; border-bottom: 2px solid #e4e7ed; display: flex; align-items: center; gap: 16px;">
-          <div style="display: flex; flex-direction: column; gap: 4px; flex: 1;">
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <el-tag type="info" effect="dark" size="small">{{ cluster.categoryLarge }}</el-tag>
-              <el-icon style="color: #909399;"><ArrowRight /></el-icon>
-              <el-tag type="info" effect="plain" size="small">{{ cluster.categorySub }}</el-tag>
-            </div>
-            <span style="color: #666; font-size: 12px; margin-top: 4px;">{{ cluster.summary }}</span>
+    <!-- 统一表格展示 -->
+    <el-table :data="tableData" style="width: 100%" border :span-method="objectSpanMethod">
+      <!-- 1. SPDT -->
+      <el-table-column label="SPDT" width="100" align="center">
+        <template #default="{row}">
+          <span v-if="row.isFirstRow">{{ row.spdt || '分组' }}</span>
+        </template>
+      </el-table-column>
+
+      <!-- 2. IPMT -->
+      <el-table-column label="IPMT" width="100" align="center">
+        <template #default="{row}">
+          <span v-if="row.isFirstRow">{{ row.ipmt || 'XX' }}</span>
+        </template>
+      </el-table-column>
+
+      <!-- 3. 聚类类别 -->
+      <el-table-column label="聚类类别" width="200">
+        <template #header>
+          <span>聚类类别</span>
+          <el-tooltip content="AI给出的聚类类别" placement="top">
+            <el-icon style="margin-left: 4px; color: #909399; cursor: help;"><QuestionFilled /></el-icon>
+          </el-tooltip>
+        </template>
+        <template #default="{row}">
+          <div v-if="row.isFirstRow" style="display: flex; flex-wrap: wrap; gap: 4px;">
+            <el-tag v-for="(cat, idx) in row.clusterCategories" :key="idx" type="info" effect="plain" size="small">
+              {{ cat }}
+            </el-tag>
           </div>
-          <el-badge :value="cluster.problemCount" type="info" />
-        </div>
-        
-        <!-- 问题列表 -->
-        <el-table :data="cluster.issues" style="width: 100%" border>
+        </template>
+      </el-table-column>
 
-          <!-- 1. 用户矫正类别 (User Correction Category) -->
-          <el-table-column label="用户矫正类别" width="220">
-            <template #default="{row}">
-              <div v-if="row.status === 'PENDING'" style="display: flex; gap: 8px;">
-                <el-button type="success" size="small" plain @click="handleVerify(row)">准确</el-button>
-                <el-button type="primary" size="small" plain @click="openCorrection(row, cluster)">纠错</el-button>
-              </div>
-              <div v-else-if="row.status === 'VERIFIED'" style="display: flex; align-items: center; justify-content: space-between;">
-                <span style="color: #67C23A; font-size: 12px; display: flex; flex-direction: column; gap: 2px;">
-                  <div style="display: flex; align-items: center; gap: 4px;"><el-icon><Check /></el-icon> AI准确</div>
-                  <span style="color: #999; font-size: 11px;">{{ row.humanCategoryLarge }} > {{ row.humanCategorySub }}</span>
-                </span>
-                <el-button type="primary" link size="small" @click="openCorrection(row, cluster)">修改</el-button>
-              </div>
-              <div v-else-if="row.status === 'CORRECTED'" style="display: flex; align-items: center; justify-content: space-between;">
-                <span style="font-size: 12px; color: #E6A23C; display: flex; flex-direction: column; gap: 2px;">
-                  <div style="display: flex; align-items: center; gap: 4px;"><el-icon><Edit /></el-icon> 人工修正</div>
-                  <span style="font-weight: 500;">{{ row.humanCategoryLarge }} > {{ row.humanCategorySub }}</span>
-                </span>
-                <el-button type="primary" link size="small" @click="openCorrection(row, cluster)">修改</el-button>
-              </div>
-            </template>
-          </el-table-column>
+      <!-- 4. 聚类总结 -->
+      <el-table-column label="聚类总结" min-width="300" show-overflow-tooltip>
+        <template #header>
+          <span>聚类总结</span>
+          <el-tooltip content="AI给出的聚类总结" placement="top">
+            <el-icon style="margin-left: 4px; color: #909399; cursor: help;"><QuestionFilled /></el-icon>
+          </el-tooltip>
+        </template>
+        <template #default="{row}">
+          <span v-if="row.isFirstRow">{{ row.clusterSummary }}</span>
+        </template>
+      </el-table-column>
 
-          <!-- 2. 矫正说明 (Correction Note) -->
-          <el-table-column label="矫正说明" width="150" show-overflow-tooltip>
-            <template #default="{row}">
-              {{ row.reason || '-' }}
-            </template>
-          </el-table-column>
+      <!-- 5. 问题数 -->
+      <el-table-column label="问题数" width="80" align="center">
+        <template #default="{row}">
+          <span v-if="row.isFirstRow">{{ row.problemCount }}</span>
+        </template>
+      </el-table-column>
 
-          <!-- 3. PROD_EN_NAME -->
-          <el-table-column prop="prodEnName" label="PROD_EN_NAME" min-width="180" show-overflow-tooltip></el-table-column>
-          
-          <!-- 4. RESOLUTION_DETAIL -->
-          <el-table-column prop="resolutionDetail" label="RESOLUTION_DETAIL" min-width="150" show-overflow-tooltip></el-table-column>
+      <!-- 6. 用户矫正类别 -->
+      <el-table-column label="用户矫正类别" width="220">
+        <template #default="{row}">
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <div style="display: flex; gap: 8px;">
+              <el-button 
+                :type="row.status === 'VERIFIED' ? 'success' : ''" 
+                :plain="row.status !== 'VERIFIED'"
+                size="small" 
+                @click="row.status === 'PENDING' ? handleVerify(row) : null">
+                <el-icon v-if="row.status === 'VERIFIED'"><Check /></el-icon>
+                AI准确
+              </el-button>
+              <el-button 
+                :type="row.status === 'CORRECTED' ? 'warning' : 'primary'" 
+                :plain="row.status !== 'CORRECTED'"
+                size="small" 
+                @click="openCorrection(row, row.cluster)">
+                <el-icon v-if="row.status === 'CORRECTED'"><Edit /></el-icon>
+                我要纠错
+              </el-button>
+            </div>
+            <div v-if="row.status === 'VERIFIED'" style="padding: 6px 8px; background: #f0f9ff; border: 1px solid #67C23A; border-radius: 4px; font-size: 12px; color: #67C23A; display: flex; align-items: center; gap: 4px;">
+              <el-icon><Check /></el-icon> 已确认为正样本
+            </div>
+            <el-input 
+              v-else-if="row.status === 'CORRECTED'"
+              v-model="row.correctedCategoryDisplay"
+              size="small"
+              placeholder="硬件板卡故障"
+              style="font-size: 12px;"
+              readonly
+            />
+          </div>
+        </template>
+      </el-table-column>
 
-          <!-- 5. ISSUE_DETAILS -->
-          <el-table-column prop="issueDetails" label="ISSUE_DETAILS" min-width="250" show-overflow-tooltip></el-table-column>
-          
-          <!-- 6. ISSUE_NO -->
-          <el-table-column prop="issueNo" label="ISSUE_NO" width="100"></el-table-column>
-        </el-table>
-      </div>
-    </div>
+      <!-- 7. 矫正说明 -->
+      <el-table-column label="矫正说明" width="250">
+        <template #default="{row}">
+          <el-input 
+            v-if="row.status === 'CORRECTED'"
+            v-model="row.reason"
+            type="textarea"
+            :rows="2"
+            placeholder="日志显示物理层报错,并非参数配置问题。"
+            size="small"
+            @blur="saveReason(row)"
+            style="--el-input-border-color: #E6A23C;"
+          />
+          <span v-else style="color: #909399; font-size: 12px;">无需填写</span>
+        </template>
+      </el-table-column>
+
+      <!-- 8. PROD_EN_NAME -->
+      <el-table-column prop="prodEnName" label="PROD_EN_NAME" min-width="150" show-overflow-tooltip></el-table-column>
+      
+      <!-- 9. RESOLUTION_DETAIL -->
+      <el-table-column prop="resolutionDetail" label="RESOLUTION_DETAIL" min-width="150" show-overflow-tooltip></el-table-column>
+
+      <!-- 10. ISSUE_DETAILS -->
+      <el-table-column prop="issueDetails" label="ISSUE_DETAILS" min-width="200" show-overflow-tooltip></el-table-column>
+      
+      <!-- 11. ISSUE_NO -->
+      <el-table-column prop="issueNo" label="ISSUE_NO" width="120"></el-table-column>
+
+      <!-- 12. ISSUE_TYPE -->
+      <el-table-column label="ISSUE_TYPE" width="120" align="center">
+        <template #default="{row}">
+          {{ row.issueType || '质量 ITR' }}
+        </template>
+      </el-table-column>
+    </el-table>
 
     <!-- Correction Dialog -->
     <el-dialog v-model="correctionDialogVisible" title="人工纠错反馈" width="500px">
@@ -122,7 +184,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { Back, ArrowRight, Check, Edit } from '@element-plus/icons-vue'
+import { Back, ArrowRight, Check, Edit, QuestionFilled } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { getTaskDetails, verifyIssue, correctIssue } from '../../api/task'
 import { useAuthStore } from '../../stores/auth'
@@ -271,14 +333,73 @@ const filteredClusters = computed(() => {
     })
 })
 
-const handleVerify = async (issue) => {
+// 转换为表格数据格式
+const tableData = computed(() => {
+    const result = []
+    
+    filteredClusters.value.forEach(cluster => {
+        // 构建聚类类别数组（大类+子类）
+        const clusterCategories = []
+        if (cluster.categoryLarge) clusterCategories.push(cluster.categoryLarge)
+        if (cluster.categorySub) clusterCategories.push(cluster.categorySub)
+        
+        // 为每个问题创建一行数据
+        cluster.issues.forEach((issue, index) => {
+            const row = {
+                ...issue,
+                cluster: cluster,
+                isFirstRow: index === 0, // 标记是否为聚类组的第一行
+                clusterId: cluster.clusterId, // 用于行合并
+                rowspan: index === 0 ? cluster.issues.length : 0, // 第一行的rowspan值
+                spdt: '分组',
+                ipmt: 'XX',
+                clusterCategories: clusterCategories,
+                clusterSummary: cluster.summary || '',
+                problemCount: cluster.problemCount || 0,
+                issueType: '质量 ITR',
+                correctedCategoryDisplay: issue.status === 'CORRECTED' 
+                    ? `${issue.humanCategoryLarge || ''}${issue.humanCategorySub ? ' > ' + issue.humanCategorySub : ''}`.trim()
+                    : ''
+            }
+            result.push(row)
+        })
+    })
+    
+    return result
+})
+
+// 行合并方法
+const objectSpanMethod = ({ row, column, rowIndex, columnIndex }) => {
+    // 需要合并的列索引：SPDT(0), IPMT(1), 聚类类别(2), 聚类总结(3), 问题数(4)
+    const mergeColumns = [0, 1, 2, 3, 4]
+    
+    if (mergeColumns.includes(columnIndex)) {
+        if (row.isFirstRow) {
+            return {
+                rowspan: row.rowspan,
+                colspan: 1
+            }
+        } else {
+            return {
+                rowspan: 0,
+                colspan: 0
+            }
+        }
+    }
+    return {
+        rowspan: 1,
+        colspan: 1
+    }
+}
+
+const handleVerify = async (row) => {
     try {
-        await verifyIssue(issue.id, userId.value)
+        await verifyIssue(row.id, userId.value)
         
         // 更新本地数据
-        const cluster = clusters.value.find(c => c.issues.some(i => i.id === issue.id))
+        const cluster = clusters.value.find(c => c.issues.some(i => i.id === row.id))
         if (cluster) {
-            const issueInCluster = cluster.issues.find(i => i.id === issue.id)
+            const issueInCluster = cluster.issues.find(i => i.id === row.id)
             if (issueInCluster) {
                 issueInCluster.status = 'VERIFIED'
                 // VERIFIED状态：humanCategory字段存储AI预测的类别（后端已更新）
@@ -297,17 +418,45 @@ const handleVerify = async (issue) => {
     }
 }
 
-const openCorrection = (issue, cluster) => {
-    currentIssue.value = issue
-    currentCluster.value = cluster
+// 保存矫正说明
+const saveReason = async (row) => {
+    if (row.status !== 'CORRECTED') return
+    
+    try {
+        // 如果类别信息已存在，直接更新reason
+        if (row.humanCategoryLarge && row.humanCategorySub) {
+            await correctIssue(row.id, {
+                categoryLarge: row.humanCategoryLarge,
+                categorySub: row.humanCategorySub,
+                reason: row.reason || ''
+            }, userId.value)
+            
+            // 更新本地数据
+            const cluster = clusters.value.find(c => c.issues.some(i => i.id === row.id))
+            if (cluster) {
+                const issueInCluster = cluster.issues.find(i => i.id === row.id)
+                if (issueInCluster) {
+                    issueInCluster.reason = row.reason || ''
+                }
+            }
+        }
+    } catch (e) {
+        console.error(e)
+        ElMessage.error('保存失败')
+    }
+}
 
-    if (issue.status === 'CORRECTED') {
-        correctionForm.categoryLarge = issue.humanCategoryLarge || ''
-        correctionForm.categorySub = issue.humanCategorySub || ''
-        correctionForm.reason = issue.reason || ''
+const openCorrection = (row, cluster) => {
+    currentIssue.value = row
+    currentCluster.value = cluster || row.cluster
+
+    if (row.status === 'CORRECTED') {
+        correctionForm.categoryLarge = row.humanCategoryLarge || ''
+        correctionForm.categorySub = row.humanCategorySub || ''
+        correctionForm.reason = row.reason || ''
     } else {
-        correctionForm.categoryLarge = cluster.categoryLarge
-        correctionForm.categorySub = cluster.categorySub
+        correctionForm.categoryLarge = currentCluster.value.categoryLarge
+        correctionForm.categorySub = currentCluster.value.categorySub
         correctionForm.reason = ''
     }
     correctionDialogVisible.value = true
@@ -323,7 +472,7 @@ const confirmCorrection = async () => {
         await correctIssue(currentIssue.value.id, {
             categoryLarge: correctionForm.categoryLarge,
             categorySub: correctionForm.categorySub,
-            reason: correctionForm.reason
+            reason: correctionForm.reason || ''
         }, userId.value)
         
         // 更新本地数据
@@ -334,7 +483,7 @@ const confirmCorrection = async () => {
                 issue.status = 'CORRECTED'
                 issue.humanCategoryLarge = correctionForm.categoryLarge
                 issue.humanCategorySub = correctionForm.categorySub
-                issue.reason = correctionForm.reason
+                issue.reason = correctionForm.reason || ''
             }
         }
         
