@@ -49,8 +49,8 @@
             </el-menu-item-group>
           </template>
 
-          <!-- User Specific -->
-          <template v-if="currentRole === 'user'">
+          <!-- Task Center: 普通用户 & 管理员都可进入 -->
+          <template v-if="currentRole === 'user' || currentRole === 'admin'">
             <el-menu-item-group title="任务中心">
               <el-menu-item index="my-tasks">
                 <el-icon><List /></el-icon>
