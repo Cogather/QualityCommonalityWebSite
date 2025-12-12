@@ -55,7 +55,7 @@
       </el-table-column>
 
       <!-- 4. 聚类总结 -->
-      <el-table-column label="聚类总结" min-width="300" show-overflow-tooltip>
+      <el-table-column label="聚类总结" min-width="300">
         <template #header>
           <span>聚类总结</span>
           <el-tooltip content="AI给出的聚类总结" placement="top">
@@ -63,7 +63,9 @@
           </el-tooltip>
         </template>
         <template #default="{row}">
-          <span v-if="row.isFirstRow">{{ row.clusterSummary }}</span>
+          <div v-if="row.isFirstRow" style="white-space: normal; word-break: break-word; line-height: 1.4;">
+            {{ row.clusterSummary }}
+          </div>
         </template>
       </el-table-column>
 
@@ -132,10 +134,22 @@
       <el-table-column prop="prodEnName" label="PROD_EN_NAME" min-width="150" show-overflow-tooltip></el-table-column>
       
       <!-- 9. RESOLUTION_DETAIL -->
-      <el-table-column prop="resolutionDetail" label="RESOLUTION_DETAIL" min-width="150" show-overflow-tooltip></el-table-column>
+      <el-table-column prop="resolutionDetail" label="RESOLUTION_DETAIL" min-width="180">
+        <template #default="{ row }">
+          <div style="white-space: normal; word-break: break-word; line-height: 1.4;">
+            {{ row.resolutionDetail || '-' }}
+          </div>
+        </template>
+      </el-table-column>
 
       <!-- 10. ISSUE_DETAILS -->
-      <el-table-column prop="issueDetails" label="ISSUE_DETAILS" min-width="200" show-overflow-tooltip></el-table-column>
+      <el-table-column prop="issueDetails" label="ISSUE_DETAILS" min-width="200">
+        <template #default="{ row }">
+          <div style="white-space: normal; word-break: break-word; line-height: 1.4;">
+            {{ row.issueDetails || '-' }}
+          </div>
+        </template>
+      </el-table-column>
       
       <!-- 11. ISSUE_NO -->
       <el-table-column prop="issueNo" label="ISSUE_NO" width="120"></el-table-column>
