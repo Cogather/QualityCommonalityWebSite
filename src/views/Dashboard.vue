@@ -1,100 +1,100 @@
 <template>
   <div class="dashboard-container">
-    <el-tabs v-model="activeTab">
-      <el-tab-pane v-for="tab in availableTabs" :key="tab.key" :label="tab.label" :name="tab.key">
-        <template v-if="tab.key === 'admin'">
-          <div style="margin-bottom: 24px;">
-            <h2 style="margin: 0; font-weight: 600;">欢迎回来，管理员</h2>
-            <p style="color: #909399; margin: 8px 0 0 0; font-size: 14px;">以下是今日的AI模型表现及人工校验进度概览。</p>
-          </div>
+    <!-- ADMIN DASHBOARD -->
+    <div v-if="currentRole === 'admin'" key="admin-dash">
+      <div style="margin-bottom: 24px;">
+        <h2 style="margin: 0; font-weight: 600;">欢迎回来，管理员</h2>
+        <p style="color: #909399; margin: 8px 0 0 0; font-size: 14px;">以下是今日的AI模型表现及人工校验进度概览。</p>
+      </div>
 
-          <div class="dashboard-grid">
-            <div class="modern-card">
-              <div class="stat-item">
-                <span class="stat-label">AI预测总数 (条)</span>
-                <span class="stat-num">{{ formatNumber(stats.totalPredictions) }}</span>
-                <span class="stat-trend trend-up"><el-icon><Top /></el-icon> 较昨日 +12%</span>
-              </div>
-            </div>
-            <div class="modern-card">
-              <div class="stat-item">
-                <span class="stat-label">模型准确率 (Accuracy)</span>
-                <span class="stat-num">{{ stats.accuracy }}%</span>
-              </div>
-            </div>
-            <div class="modern-card">
-              <div class="stat-item">
-                <span class="stat-label">待分发任务 (批次)</span>
-                <span class="stat-num" style="color: #E6A23C">{{ stats.pendingBatches }}</span>
-                <span class="stat-trend trend-down" style="color: #909399;">正常积压</span>
-              </div>
-            </div>
-            <div class="modern-card">
-              <div class="stat-item">
-                <span class="stat-label">人工校验完成率</span>
-                <span class="stat-num">{{ stats.correctionProgress }}%</span>
-                <el-progress :percentage="stats.correctionProgress" :show-text="false" stroke-width="6" style="margin-top: 10px;"></el-progress>
-              </div>
-            </div>
+      <!-- Top Stats -->
+      <div class="dashboard-grid">
+        <div class="modern-card">
+          <div class="stat-item">
+            <span class="stat-label">AI预测总数 (条)</span>
+            <span class="stat-num">{{ formatNumber(stats.totalPredictions) }}</span>
+            <span class="stat-trend trend-up"><el-icon><Top /></el-icon> 较昨日 +12%</span>
           </div>
+        </div>
+        <div class="modern-card">
+          <div class="stat-item">
+            <span class="stat-label">模型准确率 (Accuracy)</span>
+            <span class="stat-num">{{ stats.accuracy }}%</span>
+          </div>
+        </div>
+        <div class="modern-card">
+          <div class="stat-item">
+            <span class="stat-label">待分发任务 (批次)</span>
+            <span class="stat-num" style="color: #E6A23C">{{ stats.pendingBatches }}</span>
+            <span class="stat-trend trend-down" style="color: #909399;">正常积压</span>
+          </div>
+        </div>
+        <div class="modern-card">
+          <div class="stat-item">
+            <span class="stat-label">人工校验完成率</span>
+            <span class="stat-num">{{ stats.correctionProgress }}%</span>
+            <el-progress :percentage="stats.correctionProgress" :show-text="false" stroke-width="6" style="margin-top: 10px;"></el-progress>
+          </div>
+        </div>
+      </div>
 
-          <div class="chart-row">
-            <div class="modern-card">
-              <div class="card-header">
-                <span class="card-title">Top 5 预测错误类别</span>
-              </div>
-              <div ref="chartTopErrorRef" style="height: 300px; width: 100%;"></div>
-            </div>
-            <div class="modern-card">
-              <div class="card-header">
-                <span class="card-title">问题分类词云分布</span>
-              </div>
-              <div ref="chartWordcloudRef" style="height: 300px; width: 100%;"></div>
-            </div>
+      <!-- Charts -->
+      <div class="chart-row">
+        <div class="modern-card">
+          <div class="card-header">
+            <span class="card-title">Top 5 预测错误类别</span>
           </div>
-        </template>
+          <div ref="chartTopErrorRef" style="height: 300px; width: 100%;"></div>
+        </div>
+        <div class="modern-card">
+          <div class="card-header">
+            <span class="card-title">问题分类词云分布</span>
+          </div>
+          <div ref="chartWordcloudRef" style="height: 300px; width: 100%;"></div>
+        </div>
+      </div>
+    </div>
 
-        <template v-else-if="tab.key === 'user'">
-          <div style="margin-bottom: 24px;">
-            <h2 style="margin: 0; font-weight: 600;">工作台</h2>
-            <p style="color: #909399; margin: 8px 0 0 0; font-size: 14px;">你好 {{ user?.username || 'User' }}，准备好开始今天的校验工作了吗？</p>
-          </div>
+    <!-- USER DASHBOARD -->
+    <div v-else-if="currentRole === 'user'" key="user-dash">
+      <div style="margin-bottom: 24px;">
+        <h2 style="margin: 0; font-weight: 600;">工作台</h2>
+        <p style="color: #909399; margin: 8px 0 0 0; font-size: 14px;">你好 {{ user?.username || 'User' }}，准备好开始今天的校验工作了吗？</p>
+      </div>
 
-          <div class="dashboard-grid" style="grid-template-columns: 1fr;">
-            <div class="modern-card">
-              <div class="stat-item">
-                <span class="stat-label">我的待办任务</span>
-                <span class="stat-num" style="color: #409EFF">{{ myTasks.reduce((acc, t) => acc + (t.totalCount - t.processedCount), 0) }}</span>
-                <span class="stat-trend">涉及 {{ myTasks.length }} 个批次</span>
+      <div class="dashboard-grid" style="grid-template-columns: 1fr;">
+        <div class="modern-card">
+          <div class="stat-item">
+            <span class="stat-label">我的待办任务</span>
+            <span class="stat-num" style="color: #409EFF">{{ myTasks.reduce((acc, t) => acc + (t.totalCount - t.processedCount), 0) }}</span>
+            <span class="stat-trend">涉及 {{ myTasks.length }} 个批次</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="modern-card" style="margin-top: 20px;">
+        <div class="card-header">
+          <span class="card-title">快捷入口：最近的任务</span>
+          <el-button type="primary" link @click="$router.push('/user/my-tasks')">查看全部 <el-icon><ArrowRight /></el-icon></el-button>
+        </div>
+        <el-table :data="myTasks.slice(0, 3)" style="width: 100%">
+          <el-table-column prop="fileName" label="批次文件"></el-table-column>
+          <el-table-column label="进度" width="300">
+            <template #default="scope">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <el-progress :percentage="Math.round((scope.row.processedCount/scope.row.totalCount)*100)" style="flex: 1"></el-progress>
+                <span style="font-size: 12px; color: #909399;">{{scope.row.processedCount}}/{{scope.row.totalCount}}</span>
               </div>
-            </div>
-          </div>
-          
-          <div class="modern-card" style="margin-top: 20px;">
-            <div class="card-header">
-              <span class="card-title">快捷入口：最近的任务</span>
-              <el-button type="primary" link @click="$router.push('/user/my-tasks')">查看全部 <el-icon><ArrowRight /></el-icon></el-button>
-            </div>
-            <el-table :data="myTasks.slice(0, 3)" style="width: 100%">
-              <el-table-column prop="fileName" label="批次文件"></el-table-column>
-              <el-table-column label="进度" width="300">
-                <template #default="scope">
-                  <div style="display: flex; align-items: center; gap: 10px;">
-                    <el-progress :percentage="Math.round((scope.row.processedCount/scope.row.totalCount)*100)" style="flex: 1"></el-progress>
-                    <span style="font-size: 12px; color: #909399;">{{scope.row.processedCount}}/{{scope.row.totalCount}}</span>
-                  </div>
-                </template>
-              </el-table-column>
-              <el-table-column align="right">
-                <template #default="scope">
-                  <el-button size="small" type="primary" plain round @click="enterTask(scope.row)">继续校验</el-button>
-                </template>
-              </el-table-column>
-            </el-table>
-          </div>
-        </template>
-      </el-tab-pane>
-    </el-tabs>
+            </template>
+          </el-table-column>
+          <el-table-column align="right">
+            <template #default="scope">
+              <el-button size="small" type="primary" plain round @click="enterTask(scope.row)">继续校验</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -112,14 +112,6 @@ const authStore = useAuthStore()
 const router = useRouter()
 const user = computed(() => authStore.user)
 const currentRole = computed(() => user.value?.role || 'user')
-const activeTab = ref('user')
-const availableTabs = computed(() => {
-  const tabs = [{ key: 'user', label: '任务工作台' }]
-  if (currentRole.value === 'admin') {
-    tabs.unshift({ key: 'admin', label: '全局概览（管理员）' })
-  }
-  return tabs
-})
 
 // Refs for charts
 const chartTopErrorRef = ref(null)
@@ -231,10 +223,8 @@ const buildWordData = (categoryDist = []) => {
 
 onMounted(() => {
     nextTick(() => {
-        activeTab.value = currentRole.value === 'admin' ? 'admin' : 'user'
         if (currentRole.value === 'admin') {
             loadAdminData();
-            loadUserData();
         } else if (currentRole.value === 'user') {
             loadUserData();
         }
