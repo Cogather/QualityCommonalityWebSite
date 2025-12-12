@@ -20,7 +20,6 @@
           <div class="stat-item">
             <span class="stat-label">模型准确率 (Accuracy)</span>
             <span class="stat-num">{{ stats.accuracy }}%</span>
-            <span class="stat-trend trend-up"><el-icon><Top /></el-icon> 较上周 +1.2%</span>
           </div>
         </div>
         <div class="modern-card">
@@ -105,6 +104,7 @@ import { useAuthStore } from '../stores/auth'
 import { useRouter } from 'vue-router'
 import { Top, ArrowRight } from '@element-plus/icons-vue'
 import * as echarts from 'echarts'
+import 'echarts-wordcloud'
 import { getAdminStats, getTopErrors, getCategoryDistribution } from '../api/dashboard'
 import { getMyTasks } from '../api/task'
 
@@ -186,18 +186,39 @@ const initCharts = (topErrors, categoryDist) => {
     }
 
     if (chartWordcloudRef.value) {
+        const wordData = buildWordData(categoryDist)
         chartInstanceWordcloud = echarts.init(chartWordcloudRef.value);
         chartInstanceWordcloud.setOption({
-                tooltip: { trigger: 'item' },
-                legend: { bottom: 0, left: 'center' },
-                series: [{
-                    type: 'pie', radius: ['40%', '70%'], avoidLabelOverlap: false,
-                    itemStyle: { borderRadius: 8, borderColor: '#fff', borderWidth: 2 },
-                    label: { show: false },
-                    data: categoryDist
-                }]
+            tooltip: { trigger: 'item' },
+            series: [{
+                type: 'wordCloud',
+                gridSize: 8,
+                sizeRange: [14, 46],
+                rotationRange: [0, 0],
+                shape: 'circle',
+                textStyle: {
+                    color: () => {
+                        const palette = ['#5470C6', '#91CC75', '#FAC858', '#EE6666', '#73C0DE']
+                        return palette[Math.floor(Math.random() * palette.length)]
+                    }
+                },
+                data: wordData
+            }]
         });
     }
+}
+
+// 拆分“大类 > 子类”为独立关键词，并按名称聚合数量
+const buildWordData = (categoryDist = []) => {
+    const agg = new Map()
+    categoryDist.forEach(({ name, value }) => {
+        const parts = (name || '').split('>').map(p => p.trim()).filter(Boolean)
+        parts.forEach(part => {
+            const current = agg.get(part) || 0
+            agg.set(part, current + (Number(value) || 0))
+        })
+    })
+    return Array.from(agg.entries()).map(([name, value]) => ({ name, value }))
 }
 
 onMounted(() => {

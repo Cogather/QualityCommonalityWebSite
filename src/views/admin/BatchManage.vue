@@ -54,7 +54,7 @@
             <el-option 
               v-for="user in userOptions" 
               :key="user.id" 
-              :label="user.username + ' (User)'" 
+              :label="formatUserLabel(user)" 
               :value="user.id">
             </el-option>
           </el-select>
@@ -106,6 +106,12 @@ const fetchUsers = async () => {
   } catch (e) {
     console.error(e)
   }
+}
+
+const formatUserLabel = (user) => {
+  const role = (user.role || '').toString().toLowerCase()
+  const roleLabel = role === 'admin' ? '管理员' : '普通用户'
+  return `${user.username} (${roleLabel})`
 }
 
 onMounted(() => {
