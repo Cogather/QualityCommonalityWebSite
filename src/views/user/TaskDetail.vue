@@ -52,9 +52,9 @@
       </el-table-column>
 
       <!-- 3. 聚类类别 -->
-      <el-table-column label="聚类类别" :width="colWidths.clusterCategory">
+      <el-table-column label="聚类类别" :width="colWidths.clusterCategory" align="center" header-align="center">
         <template #header>
-          <div style="display: flex; align-items: center;">
+          <div style="display: flex; align-items: center; justify-content: center;">
             <span>聚类类别</span>
             <el-tooltip content="AI给出的聚类类别" placement="top">
               <el-icon style="margin-left: 4px; color: #909399; cursor: help;"><QuestionFilled /></el-icon>
@@ -62,7 +62,7 @@
           </div>
         </template>
         <template #default="{row}">
-          <div v-if="row.isFirstRow" class="cell-wrapper">
+          <div v-if="row.isFirstRow" class="cell-wrapper center-content">
             <div class="resize-handle left" @mousedown.prevent.stop="onMouseDown($event, 'clusterCategory', 'left')"></div>
             <div style="display: flex; flex-wrap: wrap; gap: 4px;">
               <el-tag v-for="(cat, idx) in row.clusterCategories" :key="idx" type="info" effect="plain" size="small">
@@ -75,9 +75,9 @@
       </el-table-column>
 
       <!-- 4. 聚类总结 -->
-      <el-table-column label="聚类总结" :width="colWidths.clusterSummary">
+      <el-table-column label="聚类总结" :width="colWidths.clusterSummary" align="center" header-align="center">
         <template #header>
-          <div style="display: flex; align-items: center;">
+          <div style="display: flex; align-items: center; justify-content: center;">
             <span>聚类总结</span>
             <el-tooltip content="AI给出的聚类总结" placement="top">
               <el-icon style="margin-left: 4px; color: #909399; cursor: help;"><QuestionFilled /></el-icon>
@@ -85,7 +85,7 @@
           </div>
         </template>
         <template #default="{row}">
-          <div v-if="row.isFirstRow" class="cell-wrapper">
+          <div v-if="row.isFirstRow" class="cell-wrapper center-content">
             <div class="resize-handle left" @mousedown.prevent.stop="onMouseDown($event, 'clusterSummary', 'left')"></div>
             <el-input
               v-model="row.clusterSummary"
@@ -112,15 +112,15 @@
       </el-table-column>
 
       <!-- 6. 用户矫正类别 -->
-      <el-table-column :width="colWidths.userCorrection" class-name="highlight-col">
+      <el-table-column :width="colWidths.userCorrection" class-name="highlight-col" align="center" header-align="center">
         <template #header>
-          <div style="display: flex; align-items: center; gap: 6px; color: #409eff;">
+          <div style="display: flex; align-items: center; justify-content: center; gap: 6px; color: #409eff;">
             <el-icon size="16"><Tools /></el-icon>
             <span>用户矫正类别 <span style="font-weight: normal; font-size: 12px; color: #79bbff;">(Human Label)</span></span>
           </div>
         </template>
         <template #default="{row}">
-          <div class="cell-wrapper">
+          <div class="cell-wrapper center-content">
             <div class="resize-handle left" @mousedown.prevent.stop="onMouseDown($event, 'userCorrection', 'left')"></div>
             <div style="display: flex; flex-direction: column; gap: 8px;">
               <div style="display: flex; gap: 8px;">
@@ -163,15 +163,15 @@
       </el-table-column>
 
       <!-- 7. 矫正说明 -->
-      <el-table-column :width="colWidths.correctionReason" class-name="highlight-col">
+      <el-table-column :width="colWidths.correctionReason" class-name="highlight-col" align="center" header-align="center">
         <template #header>
-          <div style="display: flex; align-items: center; gap: 6px; color: #e6a23c;">
+          <div style="display: flex; align-items: center; justify-content: center; gap: 6px; color: #e6a23c;">
             <el-icon size="16"><Opportunity /></el-icon>
             <span>矫正说明 <span style="font-weight: normal; font-size: 12px; color: #f3d19e;">(Reasoning)</span></span>
           </div>
         </template>
         <template #default="{row}">
-          <div class="cell-wrapper">
+          <div class="cell-wrapper center-content">
             <div class="resize-handle left" @mousedown.prevent.stop="onMouseDown($event, 'correctionReason', 'left')"></div>
             <el-input 
               v-if="row.status === 'CORRECTED'"
@@ -190,9 +190,9 @@
       </el-table-column>
 
       <!-- 8. PROD_EN_NAME -->
-      <el-table-column prop="prodEnName" label="PROD_EN_NAME" :width="colWidths.prodEnName" show-overflow-tooltip>
+      <el-table-column prop="prodEnName" label="PROD_EN_NAME" :width="colWidths.prodEnName" show-overflow-tooltip align="center" header-align="center">
         <template #default="{row}">
-          <div class="cell-wrapper">
+          <div class="cell-wrapper center-content">
             <div class="resize-handle left" @mousedown.prevent.stop="onMouseDown($event, 'prodEnName', 'left')"></div>
             <span class="text-ellipsis">{{ row.prodEnName }}</span>
             <div class="resize-handle right" @mousedown.prevent.stop="onMouseDown($event, 'prodEnName', 'right')"></div>
@@ -201,9 +201,9 @@
       </el-table-column>
       
       <!-- 9. RESOLUTION_DETAIL -->
-      <el-table-column prop="resolutionDetail" label="RESOLUTION_DETAIL" :width="colWidths.resolutionDetail">
+      <el-table-column prop="resolutionDetail" label="RESOLUTION_DETAIL" :width="colWidths.resolutionDetail" align="center" header-align="center">
         <template #default="{ row }">
-          <div class="cell-wrapper">
+          <div class="cell-wrapper center-content">
             <div class="resize-handle left" @mousedown.prevent.stop="onMouseDown($event, 'resolutionDetail', 'left')"></div>
             <el-input
               v-model="row.resolutionDetail"
@@ -219,9 +219,9 @@
       </el-table-column>
 
       <!-- 10. ISSUE_DETAILS -->
-      <el-table-column prop="issueDetails" label="ISSUE_DETAILS" :width="colWidths.issueDetails">
+      <el-table-column prop="issueDetails" label="ISSUE_DETAILS" :width="colWidths.issueDetails" align="center" header-align="center">
         <template #default="{ row }">
-          <div class="cell-wrapper">
+          <div class="cell-wrapper center-content">
             <div class="resize-handle left" @mousedown.prevent.stop="onMouseDown($event, 'issueDetails', 'left')"></div>
             <el-input
               v-model="row.issueDetails"
@@ -237,9 +237,9 @@
       </el-table-column>
       
       <!-- 11. ISSUE_NO -->
-      <el-table-column prop="issueNo" label="ISSUE_NO" :width="colWidths.issueNo">
+      <el-table-column prop="issueNo" label="ISSUE_NO" :width="colWidths.issueNo" align="center" header-align="center">
         <template #default="{row}">
-          <div class="cell-wrapper">
+          <div class="cell-wrapper center-content">
             <div class="resize-handle left" @mousedown.prevent.stop="onMouseDown($event, 'issueNo', 'left')"></div>
             <span>{{ row.issueNo }}</span>
             <div class="resize-handle right" @mousedown.prevent.stop="onMouseDown($event, 'issueNo', 'right')"></div>
