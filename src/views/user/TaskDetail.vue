@@ -140,14 +140,18 @@
               <div v-if="row.status === 'VERIFIED'" style="padding: 6px 8px; background: #f0f9ff; border: 1px solid #67C23A; border-radius: 4px; font-size: 12px; color: #67C23A; display: flex; align-items: center; gap: 4px;">
                 <el-icon><Check /></el-icon> 已确认为正样本
               </div>
-              <el-input 
-                v-else-if="row.status === 'CORRECTED'"
-                v-model="row.correctedCategoryDisplay"
-                size="small"
-                placeholder="硬件板卡故障"
-                class="custom-readonly-input-small"
-                readonly
-              />
+              <div v-else-if="row.status === 'CORRECTED'" style="display: flex; flex-direction: column; gap: 6px;">
+                <div style="padding: 6px 8px; background: #fdf6ec; border: 1px solid #e6a23c; border-radius: 4px; font-size: 12px; color: #e6a23c; display: flex; align-items: center; gap: 4px;">
+                  <el-icon><Edit /></el-icon> 已人工纠错
+                </div>
+                <el-input 
+                  v-model="row.correctedCategoryDisplay"
+                  size="small"
+                  placeholder="硬件板卡故障"
+                  class="custom-readonly-input-small"
+                  readonly
+                />
+              </div>
             </div>
             <div class="resize-handle right" @mousedown.prevent.stop="onMouseDown($event, 'userCorrection', 'right')"></div>
           </div>
