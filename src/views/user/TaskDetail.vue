@@ -54,10 +54,12 @@
       <!-- 3. 聚类类别 -->
       <el-table-column label="聚类类别" :width="colWidths.clusterCategory">
         <template #header>
-          <span>聚类类别</span>
-          <el-tooltip content="AI给出的聚类类别" placement="top">
-            <el-icon style="margin-left: 4px; color: #909399; cursor: help;"><QuestionFilled /></el-icon>
-          </el-tooltip>
+          <div style="display: flex; align-items: center;">
+            <span>聚类类别</span>
+            <el-tooltip content="AI给出的聚类类别" placement="top">
+              <el-icon style="margin-left: 4px; color: #909399; cursor: help;"><QuestionFilled /></el-icon>
+            </el-tooltip>
+          </div>
         </template>
         <template #default="{row}">
           <div v-if="row.isFirstRow" class="cell-wrapper">
@@ -75,10 +77,12 @@
       <!-- 4. 聚类总结 -->
       <el-table-column label="聚类总结" :width="colWidths.clusterSummary">
         <template #header>
-          <span>聚类总结</span>
-          <el-tooltip content="AI给出的聚类总结" placement="top">
-            <el-icon style="margin-left: 4px; color: #909399; cursor: help;"><QuestionFilled /></el-icon>
-          </el-tooltip>
+          <div style="display: flex; align-items: center;">
+            <span>聚类总结</span>
+            <el-tooltip content="AI给出的聚类总结" placement="top">
+              <el-icon style="margin-left: 4px; color: #909399; cursor: help;"><QuestionFilled /></el-icon>
+            </el-tooltip>
+          </div>
         </template>
         <template #default="{row}">
           <div v-if="row.isFirstRow" class="cell-wrapper">
