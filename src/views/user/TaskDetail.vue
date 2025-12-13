@@ -22,23 +22,30 @@
     </div>
     
     <!-- 统一表格展示 -->
-    <el-table :data="tableData" style="width: 100%" border :span-method="objectSpanMethod">
+    <el-table :data="tableData" style="width: 100%" border :span-method="objectSpanMethod" @header-dragend="handleHeaderDragEnd">
       <!-- 1. SPDT -->
-      <el-table-column label="SPDT" width="100" align="center">
+      <el-table-column label="SPDT" :width="colWidths.spdt" align="center">
         <template #default="{row}">
-          <span v-if="row.isFirstRow">{{ row.spdt || '分组' }}</span>
+          <div v-if="row.isFirstRow" class="cell-wrapper center-content">
+            <div class="resize-handle right" @mousedown.prevent.stop="onMouseDown($event, 'spdt', 'right')"></div>
+            <span>{{ row.spdt || '分组' }}</span>
+          </div>
         </template>
       </el-table-column>
 
       <!-- 2. IPMT -->
-      <el-table-column label="IPMT" width="100" align="center">
+      <el-table-column label="IPMT" :width="colWidths.ipmt" align="center">
         <template #default="{row}">
-          <span v-if="row.isFirstRow">{{ row.ipmt || 'XX' }}</span>
+          <div v-if="row.isFirstRow" class="cell-wrapper center-content">
+            <div class="resize-handle left" @mousedown.prevent.stop="onMouseDown($event, 'ipmt', 'left')"></div>
+            <span>{{ row.ipmt || 'XX' }}</span>
+            <div class="resize-handle right" @mousedown.prevent.stop="onMouseDown($event, 'ipmt', 'right')"></div>
+          </div>
         </template>
       </el-table-column>
 
       <!-- 3. 聚类类别 -->
-      <el-table-column label="聚类类别" width="200">
+      <el-table-column label="聚类类别" :width="colWidths.clusterCategory">
         <template #header>
           <span>聚类类别</span>
           <el-tooltip content="AI给出的聚类类别" placement="top">
@@ -46,16 +53,20 @@
           </el-tooltip>
         </template>
         <template #default="{row}">
-          <div v-if="row.isFirstRow" style="display: flex; flex-wrap: wrap; gap: 4px;">
-            <el-tag v-for="(cat, idx) in row.clusterCategories" :key="idx" type="info" effect="plain" size="small">
-              {{ cat }}
-            </el-tag>
+          <div v-if="row.isFirstRow" class="cell-wrapper">
+            <div class="resize-handle left" @mousedown.prevent.stop="onMouseDown($event, 'clusterCategory', 'left')"></div>
+            <div style="display: flex; flex-wrap: wrap; gap: 4px;">
+              <el-tag v-for="(cat, idx) in row.clusterCategories" :key="idx" type="info" effect="plain" size="small">
+                {{ cat }}
+              </el-tag>
+            </div>
+            <div class="resize-handle right" @mousedown.prevent.stop="onMouseDown($event, 'clusterCategory', 'right')"></div>
           </div>
         </template>
       </el-table-column>
 
       <!-- 4. 聚类总结 -->
-      <el-table-column label="聚类总结" min-width="300">
+      <el-table-column label="聚类总结" :width="colWidths.clusterSummary">
         <template #header>
           <span>聚类总结</span>
           <el-tooltip content="AI给出的聚类总结" placement="top">
@@ -63,101 +74,153 @@
           </el-tooltip>
         </template>
         <template #default="{row}">
-          <div v-if="row.isFirstRow" style="white-space: normal; word-break: break-word; line-height: 1.4;">
-            {{ row.clusterSummary }}
+          <div v-if="row.isFirstRow" class="cell-wrapper">
+            <div class="resize-handle left" @mousedown.prevent.stop="onMouseDown($event, 'clusterSummary', 'left')"></div>
+            <el-input
+              v-model="row.clusterSummary"
+              type="textarea"
+              :rows="5"
+              readonly
+              style="width: 100%"
+            />
+            <div class="resize-handle right" @mousedown.prevent.stop="onMouseDown($event, 'clusterSummary', 'right')"></div>
           </div>
         </template>
       </el-table-column>
 
       <!-- 5. 问题数 -->
-      <el-table-column label="问题数" width="80" align="center">
+      <el-table-column label="问题数" :width="colWidths.problemCount" align="center">
         <template #default="{row}">
-          <span v-if="row.isFirstRow">{{ row.problemCount }}</span>
+          <div v-if="row.isFirstRow" class="cell-wrapper center-content">
+            <div class="resize-handle left" @mousedown.prevent.stop="onMouseDown($event, 'problemCount', 'left')"></div>
+            <span>{{ row.problemCount }}</span>
+            <div class="resize-handle right" @mousedown.prevent.stop="onMouseDown($event, 'problemCount', 'right')"></div>
+          </div>
         </template>
       </el-table-column>
 
       <!-- 6. 用户矫正类别 -->
-      <el-table-column label="用户矫正类别" width="220">
+      <el-table-column label="用户矫正类别" :width="colWidths.userCorrection">
         <template #default="{row}">
-          <div style="display: flex; flex-direction: column; gap: 8px;">
-            <div style="display: flex; gap: 8px;">
-              <el-button 
-                :type="row.status === 'VERIFIED' ? 'success' : ''" 
-                :plain="row.status !== 'VERIFIED'"
-                size="small" 
-                @click="row.status === 'PENDING' ? handleVerify(row) : null">
-                <el-icon v-if="row.status === 'VERIFIED'"><Check /></el-icon>
-                AI准确
-              </el-button>
-              <el-button 
-                :type="row.status === 'CORRECTED' ? 'warning' : 'primary'" 
-                :plain="row.status !== 'CORRECTED'"
-                size="small" 
-                @click="openCorrection(row, row.cluster)">
-                <el-icon v-if="row.status === 'CORRECTED'"><Edit /></el-icon>
-                我要纠错
-              </el-button>
+          <div class="cell-wrapper">
+            <div class="resize-handle left" @mousedown.prevent.stop="onMouseDown($event, 'userCorrection', 'left')"></div>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+              <div style="display: flex; gap: 8px;">
+                <el-button 
+                  :type="row.status === 'VERIFIED' ? 'success' : ''" 
+                  :plain="row.status !== 'VERIFIED'"
+                  size="small" 
+                  @click="row.status === 'PENDING' ? handleVerify(row) : null">
+                  <el-icon v-if="row.status === 'VERIFIED'"><Check /></el-icon>
+                  AI准确
+                </el-button>
+                <el-button 
+                  :type="row.status === 'CORRECTED' ? 'warning' : 'primary'" 
+                  :plain="row.status !== 'CORRECTED'"
+                  size="small" 
+                  @click="openCorrection(row, row.cluster)">
+                  <el-icon v-if="row.status === 'CORRECTED'"><Edit /></el-icon>
+                  我要纠错
+                </el-button>
+              </div>
+              <div v-if="row.status === 'VERIFIED'" style="padding: 6px 8px; background: #f0f9ff; border: 1px solid #67C23A; border-radius: 4px; font-size: 12px; color: #67C23A; display: flex; align-items: center; gap: 4px;">
+                <el-icon><Check /></el-icon> 已确认为正样本
+              </div>
+              <el-input 
+                v-else-if="row.status === 'CORRECTED'"
+                v-model="row.correctedCategoryDisplay"
+                size="small"
+                placeholder="硬件板卡故障"
+                style="font-size: 12px;"
+                readonly
+              />
             </div>
-            <div v-if="row.status === 'VERIFIED'" style="padding: 6px 8px; background: #f0f9ff; border: 1px solid #67C23A; border-radius: 4px; font-size: 12px; color: #67C23A; display: flex; align-items: center; gap: 4px;">
-              <el-icon><Check /></el-icon> 已确认为正样本
-            </div>
-            <el-input 
-              v-else-if="row.status === 'CORRECTED'"
-              v-model="row.correctedCategoryDisplay"
-              size="small"
-              placeholder="硬件板卡故障"
-              style="font-size: 12px;"
-              readonly
-            />
+            <div class="resize-handle right" @mousedown.prevent.stop="onMouseDown($event, 'userCorrection', 'right')"></div>
           </div>
         </template>
       </el-table-column>
 
       <!-- 7. 矫正说明 -->
-      <el-table-column label="矫正说明" width="250">
+      <el-table-column label="矫正说明" :width="colWidths.correctionReason">
         <template #default="{row}">
-          <el-input 
-            v-if="row.status === 'CORRECTED'"
-            v-model="row.reason"
-            type="textarea"
-            :rows="2"
-            placeholder="日志显示物理层报错,并非参数配置问题。"
-            size="small"
-            @blur="saveReason(row)"
-            style="--el-input-border-color: #E6A23C;"
-          />
-          <span v-else style="color: #909399; font-size: 12px;">无需填写</span>
+          <div class="cell-wrapper">
+            <div class="resize-handle left" @mousedown.prevent.stop="onMouseDown($event, 'correctionReason', 'left')"></div>
+            <el-input 
+              v-if="row.status === 'CORRECTED'"
+              v-model="row.reason"
+              type="textarea"
+              :rows="2"
+              placeholder="日志显示物理层报错,并非参数配置问题。"
+              size="small"
+              @blur="saveReason(row)"
+              style="--el-input-border-color: #E6A23C;"
+            />
+            <span v-else style="color: #909399; font-size: 12px;">无需填写</span>
+            <div class="resize-handle right" @mousedown.prevent.stop="onMouseDown($event, 'correctionReason', 'right')"></div>
+          </div>
         </template>
       </el-table-column>
 
       <!-- 8. PROD_EN_NAME -->
-      <el-table-column prop="prodEnName" label="PROD_EN_NAME" min-width="150" show-overflow-tooltip></el-table-column>
+      <el-table-column prop="prodEnName" label="PROD_EN_NAME" :width="colWidths.prodEnName" show-overflow-tooltip>
+        <template #default="{row}">
+          <div class="cell-wrapper">
+            <div class="resize-handle left" @mousedown.prevent.stop="onMouseDown($event, 'prodEnName', 'left')"></div>
+            <span class="text-ellipsis">{{ row.prodEnName }}</span>
+            <div class="resize-handle right" @mousedown.prevent.stop="onMouseDown($event, 'prodEnName', 'right')"></div>
+          </div>
+        </template>
+      </el-table-column>
       
       <!-- 9. RESOLUTION_DETAIL -->
-      <el-table-column prop="resolutionDetail" label="RESOLUTION_DETAIL" min-width="180">
+      <el-table-column prop="resolutionDetail" label="RESOLUTION_DETAIL" :width="colWidths.resolutionDetail">
         <template #default="{ row }">
-          <div style="white-space: normal; word-break: break-word; line-height: 1.4;">
-            {{ row.resolutionDetail || '-' }}
+          <div class="cell-wrapper">
+            <div class="resize-handle left" @mousedown.prevent.stop="onMouseDown($event, 'resolutionDetail', 'left')"></div>
+            <el-input
+              v-model="row.resolutionDetail"
+              type="textarea"
+              :rows="3"
+              readonly
+              style="width: 100%"
+            />
+            <div class="resize-handle right" @mousedown.prevent.stop="onMouseDown($event, 'resolutionDetail', 'right')"></div>
           </div>
         </template>
       </el-table-column>
 
       <!-- 10. ISSUE_DETAILS -->
-      <el-table-column prop="issueDetails" label="ISSUE_DETAILS" min-width="200">
+      <el-table-column prop="issueDetails" label="ISSUE_DETAILS" :width="colWidths.issueDetails">
         <template #default="{ row }">
-          <div style="white-space: normal; word-break: break-word; line-height: 1.4;">
-            {{ row.issueDetails || '-' }}
+          <div class="cell-wrapper">
+            <div class="resize-handle left" @mousedown.prevent.stop="onMouseDown($event, 'issueDetails', 'left')"></div>
+            <div style="white-space: normal; word-break: break-word; line-height: 1.4; width: 100%; padding: 0 5px;">
+              {{ row.issueDetails || '-' }}
+            </div>
+            <div class="resize-handle right" @mousedown.prevent.stop="onMouseDown($event, 'issueDetails', 'right')"></div>
           </div>
         </template>
       </el-table-column>
       
       <!-- 11. ISSUE_NO -->
-      <el-table-column prop="issueNo" label="ISSUE_NO" width="120"></el-table-column>
+      <el-table-column prop="issueNo" label="ISSUE_NO" :width="colWidths.issueNo">
+        <template #default="{row}">
+          <div class="cell-wrapper">
+            <div class="resize-handle left" @mousedown.prevent.stop="onMouseDown($event, 'issueNo', 'left')"></div>
+            <span>{{ row.issueNo }}</span>
+            <div class="resize-handle right" @mousedown.prevent.stop="onMouseDown($event, 'issueNo', 'right')"></div>
+          </div>
+        </template>
+      </el-table-column>
 
       <!-- 12. ISSUE_TYPE -->
-      <el-table-column label="ISSUE_TYPE" width="120" align="center">
+      <el-table-column label="ISSUE_TYPE" :width="colWidths.issueType" align="center">
         <template #default="{row}">
-          {{ row.issueType || '质量 ITR' }}
+          <div class="cell-wrapper center-content">
+            <div class="resize-handle left" @mousedown.prevent.stop="onMouseDown($event, 'issueType', 'left')"></div>
+            <span>{{ row.issueType || '质量 ITR' }}</span>
+            <div class="resize-handle right" @mousedown.prevent.stop="onMouseDown($event, 'issueType', 'right')"></div>
+          </div>
         </template>
       </el-table-column>
     </el-table>
@@ -225,6 +288,96 @@ const correctionDialogVisible = ref(false)
 const currentIssue = ref(null)
 const currentCluster = ref(null)
 const correctionForm = reactive({ categoryLarge: '', categorySub: '', reason: '' })
+
+// 列宽状态管理
+const colWidths = reactive({
+    spdt: 100,
+    ipmt: 100,
+    clusterCategory: 200,
+    clusterSummary: 300,
+    problemCount: 80,
+    userCorrection: 220,
+    correctionReason: 250,
+    prodEnName: 150,
+    resolutionDetail: 250,
+    issueDetails: 300,
+    issueNo: 120,
+    issueType: 120
+})
+
+const columnOrder = [
+    'spdt', 
+    'ipmt', 
+    'clusterCategory', 
+    'clusterSummary', 
+    'problemCount',
+    'userCorrection', 
+    'correctionReason', 
+    'prodEnName', 
+    'resolutionDetail',
+    'issueDetails', 
+    'issueNo', 
+    'issueType'
+]
+
+const handleHeaderDragEnd = (newWidth, oldWidth, column, event) => {
+    // 映射表头label/prop到key
+    const map = {
+        'SPDT': 'spdt',
+        'IPMT': 'ipmt',
+        '聚类类别': 'clusterCategory',
+        '聚类总结': 'clusterSummary',
+        '问题数': 'problemCount',
+        '用户矫正类别': 'userCorrection',
+        '矫正说明': 'correctionReason',
+        'prodEnName': 'prodEnName',
+        'resolutionDetail': 'resolutionDetail',
+        'issueDetails': 'issueDetails',
+        'issueNo': 'issueNo',
+        'ISSUE_TYPE': 'issueType'
+    }
+    
+    // 优先匹配label，其次prop
+    const key = map[column.label] || map[column.property]
+    if (key && colWidths[key] !== undefined) {
+        colWidths[key] = newWidth
+    }
+}
+
+const onMouseDown = (e, currentKey, direction) => {
+    let targetKey = currentKey
+    
+    // 如果是左侧拖拽，实际上是调整前一列的宽度
+    if (direction === 'left') {
+        const idx = columnOrder.indexOf(currentKey)
+        if (idx > 0) {
+            targetKey = columnOrder[idx - 1]
+        } else {
+            return // 第一列的左侧无法拖拽
+        }
+    }
+
+    const startX = e.clientX
+    const startWidth = colWidths[targetKey]
+    
+    const onMouseMove = (moveEvent) => {
+        const currentX = moveEvent.clientX
+        const diff = currentX - startX
+        colWidths[targetKey] = Math.max(50, startWidth + diff) // 最小宽度50
+    }
+    
+    const onMouseUp = () => {
+        document.body.style.cursor = ''
+        document.body.style.userSelect = ''
+        document.removeEventListener('mousemove', onMouseMove)
+        document.removeEventListener('mouseup', onMouseUp)
+    }
+    
+    document.body.style.cursor = 'col-resize'
+    document.body.style.userSelect = 'none' // 防止拖拽时选中文本
+    document.addEventListener('mousemove', onMouseMove)
+    document.addEventListener('mouseup', onMouseUp)
+}
 
 // 获取问题的实际类别（直接使用humanCategory字段，所有状态都使用此字段）
 const getIssueActualCategory = (issue) => {
@@ -361,6 +514,7 @@ const tableData = computed(() => {
         cluster.issues.forEach((issue, index) => {
             const row = {
                 ...issue,
+                resolutionDetail: issue.resolutionDetail || '-',
                 cluster: cluster,
                 isFirstRow: index === 0, // 标记是否为聚类组的第一行
                 clusterId: cluster.clusterId, // 用于行合并
@@ -555,6 +709,59 @@ const revertToVerified = async () => {
   border: 1px solid #ebeef5; 
   overflow: hidden;
 }
+
+.cell-wrapper {
+    /* position: relative;  <-- 移除 relative，让 handle 相对于 td 定位 */
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center; /* 默认垂直居中 */
+    padding: 0 10px; /* 恢复单元格内边距 */
+    box-sizing: border-box; /* 确保 padding 包含在 width 内 */
+}
+.cell-wrapper.center-content {
+    justify-content: center;
+}
+.text-ellipsis {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    width: 100%;
+}
+.resize-handle {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 10px;
+    cursor: col-resize;
+    z-index: 100; /* 提高 z-index 确保在最上层 */
+}
+.resize-handle.right {
+    right: 0; 
+}
+.resize-handle.left {
+    left: 0;
+}
+.resize-handle:hover {
+    background-color: transparent; /* 移除悬浮时的背景色 */
+}
+
+/* 核心修复：让 handle 能够撑满整个 td 高度 */
+:deep(.el-table .el-table__cell) {
+    position: relative; /* td 作为定位父级 */
+}
+
+:deep(.el-table .cell) {
+    padding: 0 !important;
+    overflow: visible !important; /* 允许 handle 溢出 cell 显示 */
+    height: 100%; /* 尝试让 cell 充满 td，配合 flex 布局使用 */
+    display: flex; /* 让 cell 变成 flex 容器 */
+    flex-direction: column;
+    justify-content: center;
+}
+
+/* 确保 row 有高度时 td 也能正确传递高度 */
+/* :deep(.el-table__row) { } */
 
 .cluster-group {
   animation: fadeIn 0.3s ease-in;
