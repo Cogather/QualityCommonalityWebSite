@@ -22,7 +22,14 @@
     </div>
     
     <!-- 统一表格展示 -->
-    <el-table :data="tableData" style="width: 100%" border :span-method="objectSpanMethod" @header-dragend="handleHeaderDragEnd">
+    <el-table 
+      :data="tableData" 
+      style="width: 100%; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.04);" 
+      border 
+      :span-method="objectSpanMethod" 
+      @header-dragend="handleHeaderDragEnd"
+      :header-cell-style="{ background: '#f8f9fb', color: '#1f2d3d', fontWeight: '600', height: '56px', fontSize: '14px', borderBottom: '1px solid #ebeef5' }"
+    >
       <!-- 1. SPDT -->
       <el-table-column label="SPDT" :width="colWidths.spdt" align="center">
         <template #default="{row}">
@@ -81,6 +88,7 @@
               type="textarea"
               :rows="5"
               readonly
+              class="custom-readonly-input"
               style="width: 100%"
             />
             <div class="resize-handle right" @mousedown.prevent.stop="onMouseDown($event, 'clusterSummary', 'right')"></div>
@@ -100,7 +108,13 @@
       </el-table-column>
 
       <!-- 6. 用户矫正类别 -->
-      <el-table-column label="用户矫正类别" :width="colWidths.userCorrection">
+      <el-table-column :width="colWidths.userCorrection" class-name="highlight-col">
+        <template #header>
+          <div style="display: flex; align-items: center; gap: 6px; color: #409eff;">
+            <el-icon size="16"><Tools /></el-icon>
+            <span>用户矫正类别 <span style="font-weight: normal; font-size: 12px; color: #79bbff;">(Human Label)</span></span>
+          </div>
+        </template>
         <template #default="{row}">
           <div class="cell-wrapper">
             <div class="resize-handle left" @mousedown.prevent.stop="onMouseDown($event, 'userCorrection', 'left')"></div>
@@ -131,7 +145,7 @@
                 v-model="row.correctedCategoryDisplay"
                 size="small"
                 placeholder="硬件板卡故障"
-                style="font-size: 12px;"
+                class="custom-readonly-input-small"
                 readonly
               />
             </div>
@@ -141,7 +155,13 @@
       </el-table-column>
 
       <!-- 7. 矫正说明 -->
-      <el-table-column label="矫正说明" :width="colWidths.correctionReason">
+      <el-table-column :width="colWidths.correctionReason" class-name="highlight-col">
+        <template #header>
+          <div style="display: flex; align-items: center; gap: 6px; color: #e6a23c;">
+            <el-icon size="16"><Opportunity /></el-icon>
+            <span>矫正说明 <span style="font-weight: normal; font-size: 12px; color: #f3d19e;">(Reasoning)</span></span>
+          </div>
+        </template>
         <template #default="{row}">
           <div class="cell-wrapper">
             <div class="resize-handle left" @mousedown.prevent.stop="onMouseDown($event, 'correctionReason', 'left')"></div>
@@ -153,7 +173,7 @@
               placeholder="日志显示物理层报错,并非参数配置问题。"
               size="small"
               @blur="saveReason(row)"
-              style="--el-input-border-color: #E6A23C;"
+              class="custom-edit-input"
             />
             <span v-else style="color: #909399; font-size: 12px;">无需填写</span>
             <div class="resize-handle right" @mousedown.prevent.stop="onMouseDown($event, 'correctionReason', 'right')"></div>
@@ -182,6 +202,7 @@
               type="textarea"
               :rows="3"
               readonly
+              class="custom-readonly-input"
               style="width: 100%"
             />
             <div class="resize-handle right" @mousedown.prevent.stop="onMouseDown($event, 'resolutionDetail', 'right')"></div>
@@ -199,6 +220,7 @@
               type="textarea"
               :rows="3"
               readonly
+              class="custom-readonly-input"
               style="width: 100%"
             />
             <div class="resize-handle right" @mousedown.prevent.stop="onMouseDown($event, 'issueDetails', 'right')"></div>
@@ -265,7 +287,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { Back, ArrowRight, Check, Edit, QuestionFilled } from '@element-plus/icons-vue'
+import { Back, ArrowRight, Check, Edit, QuestionFilled, Tools, Opportunity } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { getTaskDetails, verifyIssue, correctIssue } from '../../api/task'
 import { useAuthStore } from '../../stores/auth'
@@ -770,6 +792,123 @@ const revertToVerified = async () => {
 
 .cluster-group {
   animation: fadeIn 0.3s ease-in;
+}
+
+/* 优化 Readonly 文本域样式 - 扁平化风格 */
+.custom-readonly-input :deep(.el-textarea__inner) {
+    background-color: #f9fafb; /* 极淡的灰背景 */
+    border: 1px solid transparent; /* 默认无边框 */
+    box-shadow: none !important;
+    color: #4b5563; /* 优雅的深灰 */
+    padding: 12px;
+    font-size: 13px;
+    border-radius: 8px;
+    line-height: 1.6;
+    transition: all 0.2s ease;
+}
+
+.custom-readonly-input :deep(.el-textarea__inner:hover) {
+    background-color: #fff;
+    border-color: #e5e7eb;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.02) !important;
+}
+
+/* 优化 Readonly 小输入框样式 */
+.custom-readonly-input-small :deep(.el-input__inner),
+.custom-readonly-input-small :deep(.el-input__wrapper) {
+    background-color: #f9fafb;
+    border: 1px solid transparent;
+    box-shadow: none !important;
+    color: #4b5563;
+    font-size: 13px;
+    border-radius: 6px;
+    transition: all 0.2s;
+}
+
+.custom-readonly-input-small :deep(.el-input__wrapper:hover) {
+    background-color: #fff;
+    border-color: #e5e7eb;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.02) !important;
+}
+
+/* 优化编辑输入框样式 - 现代聚焦风格 */
+.custom-edit-input :deep(.el-textarea__inner) {
+    background-color: #fff;
+    border: 1px solid #dcdfe6; 
+    border-top: none; /* 移除之前的顶部高亮 */
+    box-shadow: none !important;
+    color: #303133;
+    padding: 12px;
+    font-size: 13px;
+    border-radius: 8px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.custom-edit-input :deep(.el-textarea__inner:hover) {
+    border-color: #c0c4cc;
+}
+
+.custom-edit-input :deep(.el-textarea__inner:focus) {
+    border-color: #409eff; /* 回归品牌蓝 */
+    background-color: #fff;
+    box-shadow: 0 0 0 4px rgba(64, 158, 255, 0.1) !important; /* 柔和的扩散阴影 */
+}
+
+/* 高亮列背景色 - 使用专业淡蓝色区分 */
+:deep(.el-table td.highlight-col) {
+    background-color: #f8fbff !important; /* 极淡的品牌蓝背景 */
+    position: relative;
+}
+
+/* 给高亮列添加左侧分割线强化 */
+:deep(.el-table td.highlight-col)::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: linear-gradient(to bottom, transparent, rgba(64, 158, 255, 0.1), transparent);
+    opacity: 0.5;
+}
+:deep(.el-table .highlight-col.is-center) {
+    /* 如果有居中对齐的特殊处理 */
+    text-align: center;
+}
+
+/* 优化表格边框和分割线 */
+:deep(.el-table--border), 
+:deep(.el-table--group) {
+    border-color: #ebeef5;
+}
+
+:deep(.el-table td.el-table__cell), 
+:deep(.el-table th.el-table__cell.is-leaf) {
+    border-bottom: 1px solid #f0f2f5;
+}
+
+:deep(.el-table--border .el-table__cell), 
+:deep(.el-table__body-wrapper .el-table--border.is-scrolling-left~.el-table__fixed) {
+    border-right: 1px solid #f0f2f5;
+}
+
+/* 斑马纹增强（如果开启 stripe） */
+:deep(.el-table--striped .el-table__body tr.el-table__row--striped td) {
+    background-color: #fafafa;
+}
+/* 注意：highlight-col 的优先级需要高于斑马纹，上面的 !important 保证了这一点 */
+
+/* 微调 Tag 样式 */
+:deep(.el-tag--info) {
+    background-color: #f4f4f5;
+    border-color: #e9e9eb;
+    color: #909399;
+}
+
+:deep(.el-tag--dark) {
+    background-color: #606266;
+    border-color: #606266;
+    color: #fff;
 }
 
 @keyframes fadeIn {
