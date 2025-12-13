@@ -194,9 +194,13 @@
         <template #default="{ row }">
           <div class="cell-wrapper">
             <div class="resize-handle left" @mousedown.prevent.stop="onMouseDown($event, 'issueDetails', 'left')"></div>
-            <div style="white-space: normal; word-break: break-word; line-height: 1.4; width: 100%; padding: 0 5px;">
-              {{ row.issueDetails || '-' }}
-            </div>
+            <el-input
+              v-model="row.issueDetails"
+              type="textarea"
+              :rows="3"
+              readonly
+              style="width: 100%"
+            />
             <div class="resize-handle right" @mousedown.prevent.stop="onMouseDown($event, 'issueDetails', 'right')"></div>
           </div>
         </template>
@@ -515,6 +519,7 @@ const tableData = computed(() => {
             const row = {
                 ...issue,
                 resolutionDetail: issue.resolutionDetail || '-',
+                issueDetails: issue.issueDetails || '-',
                 cluster: cluster,
                 isFirstRow: index === 0, // 标记是否为聚类组的第一行
                 clusterId: cluster.clusterId, // 用于行合并
