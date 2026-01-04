@@ -14,16 +14,26 @@
       <el-table-column type="index" label="No." width="80"/>
       <el-table-column prop="username" label="用户名" min-width="160" show-overflow-tooltip/>
       <el-table-column prop="role" label="角色" width="120"/>
-      <el-table-column label="操作" width="240" align="center">
+      <el-table-column label="操作" width="280" align="center">
         <template #default="{row}">
-          <el-button
-            size="small"
-            type="warning"
-            plain
-            :disabled="isSelf(row) || row.role === 'GUEST'"
-            @click="handleRevoke(row)"
-            :loading="actionLoading"
-          >撤销为访客</el-button>
+          <el-dropdown 
+            v-if="!isSelf(row)" 
+            @command="(cmd) => handleRoleChange(row, cmd)"
+            trigger="click"
+            style="margin-right: 8px;"
+          >
+            <el-button type="primary" size="small" plain :loading="row.loading">
+              变更角色 <el-icon class="el-icon--right"><arrow-down /></el-icon>
+            </el-button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="ADMIN" :disabled="row.role === 'ADMIN'">设为管理员</el-dropdown-item>
+                <el-dropdown-item command="USER" :disabled="row.role === 'USER'">设为普通用户</el-dropdown-item>
+                <el-dropdown-item command="GUEST" :disabled="row.role === 'GUEST'">设为访客</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+          <span v-else style="color:#999; font-size:12px; margin-right:8px;">(当前用户)</span>
         </template>
       </el-table-column>
     </el-table>
@@ -34,7 +44,8 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { getUsers, revokeUser } from '../../api/user'
+import { ArrowDown } from '@element-plus/icons-vue'
+import { getUsers, updateUserRole } from '../../api/user'
 import { useAuthStore } from '../../stores/auth'
 
 const authStore = useAuthStore()
@@ -42,7 +53,6 @@ const currentUser = computed(() => authStore.user)
 
 const users = ref([])
 const loading = ref(false)
-const actionLoading = ref(false)
 const roleFilter = ref('')
 
 const isSelf = (row) => currentUser.value?.id === row.id
@@ -59,16 +69,19 @@ const fetchData = async () => {
   }
 }
 
-const handleRevoke = async (row) => {
-  actionLoading.value = true
+const handleRoleChange = async (row, newRole) => {
+  if (row.role === newRole) return
+  row.loading = true
   try {
-    await revokeUser(row.id)
-    ElMessage.success('已撤销为访客')
-    fetchData()
+    await updateUserRole(row.id, newRole)
+    ElMessage.success(`已将用户 ${row.username} 角色修改为 ${newRole}`)
+    // 本地更新，减少刷新闪烁
+    row.role = newRole
   } catch (e) {
     console.error(e)
+    fetchData() // 失败则刷新列表
   } finally {
-    actionLoading.value = false
+    row.loading = false
   }
 }
 

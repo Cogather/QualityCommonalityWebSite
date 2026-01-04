@@ -28,3 +28,21 @@ export function getUsers(role) {
     params: role ? { role } : {}
   })
 }
+
+export function findOrCreateUser(username) {
+  return request({
+    url: '/api/users/find-or-create',
+    method: 'post',
+    data: {
+      username
+    }
+  })
+}
+
+export function updateUserRole(userId, role) {
+  return request({
+    url: `/api/users/${userId}/role`,
+    method: 'post',
+    data: { role }
+  })
+}

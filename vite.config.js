@@ -14,7 +14,8 @@ export default defineConfig(({ mode }) => {
         '/api': {
           // 读取环境变量中的 VITE_API_TARGET，如果没有则默认 http://localhost:8080
           target: env.VITE_API_TARGET || 'http://localhost:8080',
-          changeOrigin: true
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/api/, '/service/api')
         }
       }
     }
