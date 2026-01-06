@@ -178,7 +178,7 @@
               v-model="row.reason"
               type="textarea"
               :rows="2"
-              placeholder="日志显示物理层报错,并非参数配置问题。"
+              placeholder=""
               size="small"
               @blur="saveReason(row)"
               class="custom-edit-input"

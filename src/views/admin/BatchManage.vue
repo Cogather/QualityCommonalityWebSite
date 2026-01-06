@@ -38,6 +38,7 @@
           <template #default="scope">
             <el-button v-if="scope.row.status === 'PENDING'" type="primary" link @click="openDistributeDialog(scope.row)">分发</el-button>
             <el-button v-else-if="scope.row.status === 'ASSIGNED'" type="warning" link @click="openDistributeDialog(scope.row)">修改分发</el-button>
+            <el-button v-else-if="scope.row.status === 'COMPLETED'" type="success" link @click="openDistributeDialog(scope.row)">重新分发</el-button>
             <el-button v-else type="info" link disabled>已完成</el-button>
             <el-button type="danger" link @click="handleDelete(scope.row)">删除</el-button>
           </template>
